@@ -7,14 +7,12 @@ import { useWorkspace } from "@/lib/store";
 import { useAuthUser } from "@/lib/useAuthUser";
 import { Icon } from "./Icons";
 import { ProjectForm } from "./ProjectForm";
-import { UpdateForm } from "./UpdateForm";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { mode, loading, user, setUser } = useWorkspace();
   const me = useAuthUser();
   const pathname = usePathname();
   const [projectOpen, setProjectOpen] = useState(false);
-  const [updateOpen, setUpdateOpen] = useState(false);
 
   useEffect(() => {
     if (me?.name && me.name !== user) setUser(me.name);
@@ -33,10 +31,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (e.key === "n") {
         e.preventDefault();
         setProjectOpen(true);
-      }
-      if (e.key === "u") {
-        e.preventDefault();
-        setUpdateOpen(true);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -57,10 +51,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
 
         <div className="appbar-actions">
-          <button className="btn btn-outline btn-sm" type="button" onClick={() => setUpdateOpen(true)}>
-            <Icon name="note" size={14} />
-            <span className="hide-sm">Log update</span>
-          </button>
           <button className="btn btn-primary btn-sm" type="button" onClick={() => setProjectOpen(true)}>
             <Icon name="plus" size={14} />
             <span className="hide-sm">New project</span>
@@ -99,7 +89,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
 
       {projectOpen && <ProjectForm onClose={() => setProjectOpen(false)} />}
-      {updateOpen && <UpdateForm onClose={() => setUpdateOpen(false)} />}
     </>
   );
 }

@@ -18,7 +18,11 @@ export type IconName =
   | "note"
   | "shield"
   | "external"
-  | "logout";
+  | "logout"
+  | "comment"
+  | "maximize"
+  | "minimize"
+  | "target";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   projects: (
@@ -128,6 +132,34 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M10 4H5v16h5" />
       <path d="M14 8l4 4-4 4" />
       <path d="M8 12h10" />
+    </>
+  ),
+  comment: (
+    <>
+      <path d="M4 5h16v11H9l-5 4z" />
+    </>
+  ),
+  maximize: (
+    <>
+      <path d="M9 4H4v5" />
+      <path d="M15 4h5v5" />
+      <path d="M9 20H4v-5" />
+      <path d="M15 20h5v-5" />
+    </>
+  ),
+  minimize: (
+    <>
+      <path d="M4 9h5V4" />
+      <path d="M20 9h-5V4" />
+      <path d="M4 15h5v5" />
+      <path d="M20 15h-5v5" />
+    </>
+  ),
+  target: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
     </>
   ),
 };

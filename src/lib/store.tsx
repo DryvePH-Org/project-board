@@ -14,19 +14,18 @@ import { demoRepository } from "./demoRepo";
 import { isSupabaseConfigured } from "./supabase";
 import { supabaseRepository } from "./supabaseRepo";
 import type {
-  Blocker,
-  BlockerInput,
+  CommentInput,
   DataSet,
   EdgeInput,
   NodeInput,
   Project,
+  ProjectEdge,
   ProjectInput,
   ProjectNode,
   Repository,
-  UpdateInput,
 } from "./types";
 
-const EMPTY: DataSet = { projects: [], updates: [], blockers: [], nodes: [], edges: [] };
+const EMPTY: DataSet = { projects: [], nodes: [], edges: [], comments: [] };
 
 type ToastTone = "success" | "error" | "info";
 interface Toast {
@@ -46,16 +45,14 @@ interface WorkspaceValue {
   createProject: (input: ProjectInput) => Promise<boolean>;
   updateProject: (id: string, patch: Partial<Project>) => Promise<boolean>;
   deleteProject: (id: string) => Promise<boolean>;
-  addUpdate: (input: UpdateInput) => Promise<boolean>;
-  deleteUpdate: (id: string) => Promise<boolean>;
-  addBlocker: (input: BlockerInput) => Promise<boolean>;
-  updateBlocker: (id: string, patch: Partial<Blocker>) => Promise<boolean>;
-  deleteBlocker: (id: string) => Promise<boolean>;
   addNode: (input: NodeInput) => Promise<boolean>;
   updateNode: (id: string, patch: Partial<ProjectNode>) => Promise<boolean>;
   deleteNode: (id: string) => Promise<boolean>;
   addEdge: (input: EdgeInput) => Promise<boolean>;
+  updateEdge: (id: string, patch: Partial<ProjectEdge>) => Promise<boolean>;
   deleteEdge: (id: string) => Promise<boolean>;
+  addComment: (input: CommentInput) => Promise<boolean>;
+  deleteComment: (id: string) => Promise<boolean>;
   notify: (message: string, tone?: ToastTone) => void;
   toasts: Toast[];
   dismissToast: (id: number) => void;
@@ -147,16 +144,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       createProject: (input) => run(() => repo.createProject(input), "Project created"),
       updateProject: (id, patch) => run(() => repo.updateProject(id, patch), "Project updated"),
       deleteProject: (id) => run(() => repo.deleteProject(id), "Project deleted"),
-      addUpdate: (input) => run(() => repo.addUpdate(input), "Update logged"),
-      deleteUpdate: (id) => run(() => repo.deleteUpdate(id), "Update removed"),
-      addBlocker: (input) => run(() => repo.addBlocker(input), "Blocker added"),
-      updateBlocker: (id, patch) => run(() => repo.updateBlocker(id, patch), "Blocker updated"),
-      deleteBlocker: (id) => run(() => repo.deleteBlocker(id), "Blocker removed"),
-      addNode: (input) => run(() => repo.addNode(input), "Node added"),
-      updateNode: (id, patch) => run(() => repo.updateNode(id, patch), "Node updated"),
+      addNode: (input) => run(() => repo.addNode(input), "Block added"),
+      updateNode: (id, patch) => {
+        const positionOnly = Object.keys(patch).every((k) => k === "positionX" || k === "positionY");
+        return run(() => repo.updateNode(id, patch), positionOnly ? "" : "Node updated");
+      },
       deleteNode: (id) => run(() => repo.deleteNode(id), "Node removed"),
       addEdge: (input) => run(() => repo.addEdge(input), ""),
+      updateEdge: (id, patch) => run(() => repo.updateEdge(id, patch), patch.blocked !== undefined ? (patch.blocked ? "Blocker added" : "Blocker cleared") : ""),
       deleteEdge: (id) => run(() => repo.deleteEdge(id), "Link removed"),
+      addComment: (input) => run(() => repo.addComment(input), "Comment added"),
+      deleteComment: (id) => run(() => repo.deleteComment(id), "Comment removed"),
       notify,
       toasts,
       dismissToast,

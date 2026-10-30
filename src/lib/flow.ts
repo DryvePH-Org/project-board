@@ -1,80 +1,62 @@
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
-import { Graph, layout } from "@dagrejs/dagre";
-import { nodeKindMeta, nodeStateMeta } from "./constants";
-import { dueLabel } from "./format";
-import type { NodeKind, NodeState, ProjectEdge, ProjectNode } from "./types";
+import { nodeStateMeta } from "./constants";
+import type { NodeState, ProjectEdge, ProjectNode } from "./types";
 
-export const NODE_W = 216;
-export const NODE_H = 68;
+export const EDGE_COLOR = "#4f46e5";
+export const EDGE_COLOR_BLOCKED = "#c02626";
+
+export const NODE_W = 260;
+export const NODE_H = 92;
 
 export type FlowNodeData = {
   title: string;
   state: NodeState;
-  kind: NodeKind;
-  kindLabel: string;
-  dueText: string | null;
   tone: string;
   stateLabel: string;
+  commentCount: number;
 };
 
 export type FlowNodeType = Node<FlowNodeData, "pulse">;
 
-/** Left-to-right ranks. Unconnected nodes land in the first column. */
-export function layoutNodes(nodes: ProjectNode[], edges: ProjectEdge[]): Record<string, { x: number; y: number }> {
-  const graph = new Graph();
-  graph.setDefaultEdgeLabel(() => ({}));
-  graph.setGraph({ rankdir: "LR", nodesep: 36, ranksep: 84 });
+export type FlowEdgeData = {
+  blocked: boolean;
+  blockerNote: string;
+};
 
-  for (const node of nodes) graph.setNode(node.id, { width: NODE_W, height: NODE_H });
-  for (const edge of edges) {
-    if (graph.hasNode(edge.sourceId) && graph.hasNode(edge.targetId)) {
-      graph.setEdge(edge.sourceId, edge.targetId);
-    }
-  }
+export type FlowEdgeType = Edge<FlowEdgeData, "pulse">;
 
-  layout(graph);
-
-  const positions: Record<string, { x: number; y: number }> = {};
-  for (const node of nodes) {
-    const box = graph.node(node.id) as { x?: number; y?: number } | undefined;
-    if (box?.x !== undefined && box?.y !== undefined) {
-      positions[node.id] = { x: box.x - NODE_W / 2, y: box.y - NODE_H / 2 };
-    }
-  }
-  return positions;
-}
-
-export function toFlowNodes(
-  nodes: ProjectNode[],
-  positions: Record<string, { x: number; y: number }>,
-): FlowNodeType[] {
+export function toFlowNodes(nodes: ProjectNode[], commentCounts: Record<string, number>): FlowNodeType[] {
   return nodes.map((node) => {
     const meta = nodeStateMeta(node.state);
-    const due = node.dueDate ? dueLabel(node.dueDate, { done: node.state === "done" }) : null;
     return {
       id: node.id,
       type: "pulse",
-      position: positions[node.id] ?? { x: 0, y: 0 },
+      position: { x: node.positionX, y: node.positionY },
       data: {
         title: node.title,
         state: node.state,
-        kind: node.kind,
-        kindLabel: nodeKindMeta(node.kind).label,
-        dueText: due?.text ?? null,
         tone: meta.tone,
         stateLabel: meta.label,
+        commentCount: commentCounts[node.id] ?? 0,
       },
     };
   });
 }
 
-export function toFlowEdges(edges: ProjectEdge[]): Edge[] {
-  return edges.map((edge) => ({
-    id: edge.id,
-    source: edge.sourceId,
-    target: edge.targetId,
-    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "#b9c1cf" },
-  }));
+export function toFlowEdges(edges: ProjectEdge[]): FlowEdgeType[] {
+  return edges.map((edge) => {
+    const color = edge.blocked ? EDGE_COLOR_BLOCKED : EDGE_COLOR;
+    return {
+      id: edge.id,
+      source: edge.sourceId,
+      target: edge.targetId,
+      type: "pulse",
+      animated: true,
+      style: { stroke: color, strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color },
+      data: { blocked: edge.blocked, blockerNote: edge.blockerNote },
+    };
+  });
 }
 
 /** True when linking source → target would close a loop, i.e. target already
@@ -97,4 +79,13 @@ export function wouldCreateCycle(edges: ProjectEdge[], sourceId: string, targetI
     for (const next of outgoing.get(id) ?? []) stack.push(next);
   }
   return false;
+}
+
+/** Where to drop a newly added block: below everything already on the board,
+ * so it never lands on top of (or overlapping) an existing block. */
+export function nextNodePosition(existing: ProjectNode[]): { x: number; y: number } {
+  if (existing.length === 0) return { x: 60, y: 120 };
+  const minX = Math.min(...existing.map((n) => n.positionX));
+  const maxY = Math.max(...existing.map((n) => n.positionY));
+  return { x: minX, y: maxY + NODE_H + 56 };
 }

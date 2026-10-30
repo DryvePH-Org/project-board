@@ -2,7 +2,7 @@
 
 import "@xyflow/react/dist/style.css";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Background,
   Controls,
@@ -10,55 +10,70 @@ import {
   ReactFlow,
   useEdgesState,
   useNodesState,
+  useReactFlow,
   type Connection,
 } from "@xyflow/react";
+import { Icon } from "@/components/Icons";
 import { FlowNodeCard } from "./FlowNode";
+import { FlowEdgeButton } from "./FlowEdge";
 import { NodeInspector } from "./NodeInspector";
-import { NODE_KINDS } from "@/lib/constants";
-import { layoutNodes, toFlowEdges, toFlowNodes, wouldCreateCycle, type FlowNodeType } from "@/lib/flow";
+import { nextNodePosition, toFlowEdges, toFlowNodes, wouldCreateCycle, type FlowNodeType } from "@/lib/flow";
 import { useWorkspace } from "@/lib/store";
-import type { NodeKind, Project, ProjectEdge, ProjectNode } from "@/lib/types";
+import type { NodeComment, Project, ProjectEdge, ProjectNode } from "@/lib/types";
 
 const nodeTypes = { pulse: FlowNodeCard };
+const edgeTypes = { pulse: FlowEdgeButton };
+
+function RecenterButton() {
+  const { fitView } = useReactFlow();
+  return (
+    <button
+      type="button"
+      className="btn btn-icon flow-canvas__recenter"
+      title="Find the blocks (recenter the view)"
+      aria-label="Recenter on the blocks"
+      onClick={() => fitView({ padding: 0.25, duration: 400 })}
+    >
+      <Icon name="target" size={16} />
+    </button>
+  );
+}
 
 export function FlowCanvas({
   project,
   nodes,
   edges,
+  comments,
 }: {
   project: Project;
   nodes: ProjectNode[];
   edges: ProjectEdge[];
+  comments: NodeComment[];
 }) {
-  const { addNode, addEdge, deleteEdge, deleteNode, notify } = useWorkspace();
-  const [rfNodes, setRfNodes, onNodesChange] = useNodesState<FlowNodeType>([]);
+  const { addNode, addEdge, deleteEdge, deleteNode, updateNode, notify } = useWorkspace();
+  const commentCounts = comments.reduce<Record<string, number>>((acc, c) => {
+    acc[c.nodeId] = (acc[c.nodeId] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState<FlowNodeType>(toFlowNodes(nodes, commentCounts));
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(toFlowEdges(edges));
+  const [fullscreen, setFullscreen] = useState(true);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
-  const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
+  const [focusComments, setFocusComments] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [newKind, setNewKind] = useState<NodeKind>("step");
-
-  /** Dragging is a view preference, not data — the nodes table has no position. */
-  const dragged = useRef<Record<string, { x: number; y: number }>>({});
-
-  const layout = useMemo(() => layoutNodes(nodes, edges), [nodes, edges]);
-  const styled = useMemo(() => toFlowNodes(nodes, layout), [nodes, layout]);
 
   useEffect(() => {
-    setRfNodes(
-      styled.map((node) => {
-        const position = dragged.current[node.id];
-        return position ? { ...node, position } : node;
-      }),
-    );
-  }, [styled, setRfNodes]);
+    setRfNodes(toFlowNodes(nodes, commentCounts));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, comments, setRfNodes]);
 
   useEffect(() => {
     setRfEdges(toFlowEdges(edges));
   }, [edges, setRfEdges]);
 
   const node = nodes.find((n) => n.id === selectedNode) ?? null;
-  const link = edges.find((e) => e.id === selectedEdge) ?? null;
+  const nodeComments = node ? comments.filter((c) => c.nodeId === node.id) : [];
   const edgeCount = node ? edges.filter((e) => e.sourceId === node.id || e.targetId === node.id).length : 0;
 
   function connect(connection: Connection) {
@@ -66,11 +81,11 @@ export function FlowCanvas({
     const target = connection.target;
     if (!source || !target) return;
     if (source === target) {
-      notify("A step cannot link to itself.", "info");
+      notify("A block cannot link to itself.", "info");
       return;
     }
     if (edges.some((e) => e.sourceId === source && e.targetId === target)) {
-      notify("Those steps are already linked.", "info");
+      notify("Those blocks are already linked.", "info");
       return;
     }
     if (wouldCreateCycle(edges, source, target)) {
@@ -84,113 +99,130 @@ export function FlowCanvas({
     e.preventDefault();
     const title = newTitle.trim();
     if (!title) return;
+    const { x, y } = nextNodePosition(nodes);
     const ok = await addNode({
       projectId: project.id,
       title,
       note: "",
-      kind: newKind,
       state: "idea",
-      dueDate: null,
+      positionX: x,
+      positionY: y,
     });
     if (ok) setNewTitle("");
   }
 
-  if (nodes.length === 0) {
-    return (
+  function selectNode(id: string, fromCommentButton: boolean) {
+    setSelectedNode(id);
+    setFocusComments(fromCommentButton);
+  }
+
+  const addForm = (
+    <form className="flow-add" onSubmit={submitNode}>
+      <input
+        className="input input-sm"
+        value={newTitle}
+        onChange={(e) => setNewTitle(e.target.value)}
+        placeholder="Add a block…"
+        aria-label="New block"
+      />
+      <button className="btn btn-outline btn-sm" type="submit" disabled={!newTitle.trim()}>
+        Add
+      </button>
+    </form>
+  );
+
+  const body =
+    nodes.length === 0 ? (
       <div className="flow-canvas flow-canvas--empty">
-        <p className="flow-canvas__empty-title">Nothing to draw yet</p>
-        <p className="flow-canvas__empty">Add a step above, then drag from its right edge to another step to link them.</p>
+        <p className="flow-canvas__empty-title">Nothing on the board yet</p>
+        <p className="flow-canvas__empty">
+          Add a block, drag it anywhere, then pull from its right edge to another block to link them.
+        </p>
+        <form className="flow-add flow-add--centered" onSubmit={submitNode}>
+          <input
+            className="input input-sm"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="Add a block…"
+            aria-label="New block"
+            autoFocus
+          />
+          <button className="btn btn-outline btn-sm" type="submit" disabled={!newTitle.trim()}>
+            Add
+          </button>
+        </form>
+      </div>
+    ) : (
+      <div className={`flow-canvas${fullscreen ? " flow-canvas--full" : ""}`}>
+        <ReactFlow
+          nodes={rfNodes}
+          edges={rfEdges}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={connect}
+          onNodeClick={(event, n) => {
+            const fromComment = (event.target as HTMLElement).closest(".flow-node__comment-btn") !== null;
+            selectNode(n.id, fromComment);
+          }}
+          onPaneClick={() => setSelectedNode(null)}
+          onNodeDragStop={(_, n) => {
+            void updateNode(n.id, { positionX: n.position.x, positionY: n.position.y });
+          }}
+          deleteKeyCode={null}
+          defaultViewport={{ x: 40, y: 40, zoom: 1 }}
+          minZoom={0.3}
+          proOptions={{ hideAttribution: false }}
+        >
+          <Background gap={22} size={1} />
+          <Controls showInteractive={false} position="bottom-left" />
+          <Panel position="bottom-left" className="flow-canvas__recenter-panel">
+            <RecenterButton />
+          </Panel>
+
+          <Panel position="top-left">{addForm}</Panel>
+        </ReactFlow>
+
+        {node && (
+          <NodeInspector
+            node={node}
+            comments={nodeComments}
+            edgeCount={edgeCount}
+            focusComments={focusComments}
+            onClose={() => setSelectedNode(null)}
+            onDelete={(id) => {
+              setSelectedNode(null);
+              void deleteNode(id);
+            }}
+          />
+        )}
+      </div>
+    );
+
+  if (!fullscreen) {
+    return (
+      <div className="flow-embedded">
+        <div className="flow-embedded__bar">
+          <button className="btn btn-outline btn-sm" type="button" onClick={() => setFullscreen(true)}>
+            <Icon name="maximize" size={14} /> Full screen
+          </button>
+        </div>
+        {body}
       </div>
     );
   }
 
   return (
-    <div className="flow-canvas">
-      <ReactFlow
-        nodes={rfNodes}
-        edges={rfEdges}
-        nodeTypes={nodeTypes}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={connect}
-        onNodeClick={(_, n) => {
-          setSelectedNode(n.id);
-          setSelectedEdge(null);
-        }}
-        onEdgeClick={(_, e) => {
-          setSelectedEdge(e.id);
-          setSelectedNode(null);
-        }}
-        onPaneClick={() => {
-          setSelectedNode(null);
-          setSelectedEdge(null);
-        }}
-        onNodeDragStop={(_, n) => {
-          dragged.current[n.id] = n.position;
-        }}
-        deleteKeyCode={null}
-        fitView
-        fitViewOptions={{ padding: 0.22 }}
-        minZoom={0.4}
-        proOptions={{ hideAttribution: false }}
-      >
-        <Background gap={22} size={1} />
-        <Controls showInteractive={false} position="bottom-left" />
-
-        <Panel position="top-left">
-          <form className="flow-add" onSubmit={submitNode}>
-            <input
-              className="input input-sm"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="Add a step…"
-              aria-label="New step"
-            />
-            <select
-              className="select select-sm"
-              value={newKind}
-              onChange={(e) => setNewKind(e.target.value as NodeKind)}
-              aria-label="Kind"
-              style={{ width: 104 }}
-            >
-              {NODE_KINDS.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.label}
-                </option>
-              ))}
-            </select>
-            <button className="btn btn-outline btn-sm" type="submit" disabled={!newTitle.trim()}>
-              Add
-            </button>
-          </form>
-        </Panel>
-
-        {link && (
-          <Panel position="top-right">
-            <div className="flow-link-chip">
-              <span className="flow-link-chip__text">
-                {nodes.find((n) => n.id === link.sourceId)?.title ?? "Step"} →{" "}
-                {nodes.find((n) => n.id === link.targetId)?.title ?? "Step"}
-              </span>
-              <button className="btn btn-outline btn-sm" type="button" onClick={() => void deleteEdge(link.id)}>
-                Remove link
-              </button>
-            </div>
-          </Panel>
-        )}
-      </ReactFlow>
-
-      {node && (
-        <NodeInspector
-          node={node}
-          edgeCount={edgeCount}
-          onClose={() => setSelectedNode(null)}
-          onDelete={(id) => {
-            setSelectedNode(null);
-            void deleteNode(id);
-          }}
-        />
-      )}
+    <div className="flow-fullscreen">
+      <div className="flow-fullscreen__bar">
+        <button className="btn btn-outline btn-sm" type="button" onClick={() => setFullscreen(false)}>
+          <Icon name="minimize" size={14} /> Exit full screen
+        </button>
+        <span className="flow-fullscreen__title">{project.name} — Freeform board</span>
+        <span className="tiny muted">{nodes.length} blocks</span>
+      </div>
+      <div className="flow-fullscreen__canvas">{body}</div>
     </div>
   );
 }

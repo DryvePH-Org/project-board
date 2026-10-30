@@ -27,9 +27,7 @@ const connectionString =
   `${protocol}://${encodeURIComponent(user)}:${encodeURIComponent(password)}` +
   `@${hosts}/${encodeURIComponent(dbname)}${query ? `?${query}` : ""}`;
 
-const files = process.argv.slice(2).length
-  ? process.argv.slice(2)
-  : ["schema.sql", "phase1_auth.sql", "phase4_nodes.sql"];
+const files = process.argv.slice(2).length ? process.argv.slice(2) : ["schema.sql"];
 
 (async () => {
   // Supabase's Direct TCP endpoint presents a certificate chain Node does not

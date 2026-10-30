@@ -2,8 +2,6 @@
 
 import { useEffect, type ReactNode } from "react";
 import { Icon, type IconName } from "./Icons";
-import { statusMeta } from "@/lib/constants";
-import type { ProjectStatus } from "@/lib/types";
 
 /* ---------------------------------------------------------------- pills */
 
@@ -23,15 +21,6 @@ export function Pill({
       {dot && <span className="pill-dot" />}
       {children}
     </span>
-  );
-}
-
-export function StatusPill({ status, dot = true }: { status: ProjectStatus; dot?: boolean }) {
-  const meta = statusMeta(status);
-  return (
-    <Pill tone={meta.tone} dot={dot}>
-      {meta.label}
-    </Pill>
   );
 }
 

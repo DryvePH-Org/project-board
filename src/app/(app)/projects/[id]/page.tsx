@@ -2,17 +2,15 @@
 
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { Icon } from "@/components/Icons";
 import { ProjectForm } from "@/components/ProjectForm";
-import { FreeFormModule } from "@/components/project/FreeFormModule";
 import { FlowModule } from "@/components/project/FlowModule";
 import { OverviewModule } from "@/components/project/OverviewModule";
 import { ProjectHeader } from "@/components/project/ProjectHeader";
 import { ProjectNav, moduleFromParam } from "@/components/project/ProjectNav";
 import { EmptyState } from "@/components/ui";
-import { edgesFor, nodesFor, openBlockersFor, projectBlockers, projectHealth, updatesFor } from "@/lib/analytics";
-import { dueLabel, formatHours } from "@/lib/format";
+import { commentsFor, edgesFor, nodesFor } from "@/lib/analytics";
 import { useWorkspace } from "@/lib/store";
 
 export default function ProjectDetailPage() {
@@ -32,20 +30,14 @@ function ProjectDetail() {
 
   const project = data.projects.find((p) => p.id === params.id);
   const module = moduleFromParam(searchParams.get("module"));
-  const updates = useMemo(
-    () => (project ? updatesFor(data.updates, project.id) : []),
-    [data.updates, project],
-  );
-  const blockers = useMemo(
-    () => (project ? projectBlockers(data.blockers, project.id) : []),
-    [data.blockers, project],
-  );
   const nodes = useMemo(() => (project ? nodesFor(data.nodes, project.id) : []), [data.nodes, project]);
   const edges = useMemo(() => (project ? edgesFor(data.edges, project.id) : []), [data.edges, project]);
+  const comments = useMemo(
+    () => (project ? commentsFor(data.comments, project.id) : []),
+    [data.comments, project],
+  );
 
   const [editOpen, setEditOpen] = useState(false);
-  const [focusComposer, setFocusComposer] = useState(false);
-  const onFocusHandled = useCallback(() => setFocusComposer(false), []);
 
   if (!project) {
     return (
@@ -63,11 +55,6 @@ function ProjectDetail() {
       </div>
     );
   }
-
-  const due = dueLabel(project.dueDate, { done: project.stage === "done" });
-  const health = projectHealth(project, data.updates, data.blockers);
-  const totalHours = updates.reduce((sum, u) => sum + (u.hours ?? 0), 0);
-  const last = updates[0];
 
   function goModule(id: string) {
     router.replace(`${pathname}?module=${id}`, { scroll: false });
@@ -87,17 +74,9 @@ function ProjectDetail() {
         <div className="project-shell__main">
           <ProjectHeader
             project={project}
-            health={health}
-            due={due}
-            totalHours={totalHours}
-            last={last}
             onEdit={() => setEditOpen(true)}
-            onLogUpdate={() => {
-              goModule("freeform");
-              setFocusComposer(true);
-            }}
             onDelete={() => {
-              if (window.confirm(`Delete “${project.name}” and all its history? This cannot be undone.`)) {
+              if (window.confirm(`Delete “${project.name}” and its board? This cannot be undone.`)) {
                 void deleteProject(project.id).then((ok) => {
                   if (ok) router.push("/");
                 });
@@ -105,21 +84,9 @@ function ProjectDetail() {
             }}
           />
 
-          {module === "overview" && (
-            <OverviewModule
-              project={project}
-              blockers={blockers}
-              open={openBlockersFor(data.blockers, project.id)}
-            />
-          )}
-          {module === "flow" && <FlowModule project={project} nodes={nodes} edges={edges} />}
-          {module === "freeform" && (
-            <FreeFormModule
-              project={project}
-              updates={updates}
-              focusComposer={focusComposer}
-              onFocusHandled={onFocusHandled}
-            />
+          {module === "overview" && <OverviewModule project={project} nodeCount={nodes.length} />}
+          {module === "board" && (
+            <FlowModule project={project} nodes={nodes} edges={edges} comments={comments} />
           )}
         </div>
       </div>

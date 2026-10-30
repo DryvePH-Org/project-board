@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { PROJECT_COLORS, STAGES } from "@/lib/constants";
+import { PROJECT_COLORS, STATUSES } from "@/lib/constants";
 import { useWorkspace } from "@/lib/store";
-import type { Project, Stage } from "@/lib/types";
+import type { Project, ProjectStatus } from "@/lib/types";
 import { Field, Modal } from "./ui";
 
 export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
@@ -13,8 +13,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const [name, setName] = useState(project?.name ?? "");
   const [description, setDescription] = useState(project?.description ?? "");
   const [owner, setOwner] = useState(project?.owner ?? user ?? "");
-  const [stage, setStage] = useState<Stage>(project?.stage ?? "planning");
-  const [dueDate, setDueDate] = useState(project?.dueDate ?? "");
+  const [status, setStatus] = useState<ProjectStatus>(project?.status ?? "on_track");
   const [color, setColor] = useState(project?.color ?? PROJECT_COLORS[0]);
 
   async function submit(e: React.FormEvent) {
@@ -25,18 +24,10 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
       name: name.trim(),
       description: description.trim(),
       owner: owner.trim(),
-      stage,
-      dueDate: dueDate || null,
+      status,
       color,
     };
-    const ok = project
-      ? await updateProject(project.id, payload)
-      : await createProject({
-          ...payload,
-          priority: "medium",
-          status: "on_track",
-          startDate: null,
-        });
+    const ok = project ? await updateProject(project.id, payload) : await createProject(payload);
     setSaving(false);
     if (ok) onClose();
   }
@@ -44,7 +35,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   return (
     <Modal
       title={project ? "Edit project" : "New project"}
-      subtitle={project ? "Changes are visible to everyone on the team." : "Just the basics — you can add updates right after."}
+      subtitle={project ? "Changes are visible to everyone on the team." : "Just the basics — you can map the board right after."}
       onClose={onClose}
       footer={
         <>
@@ -78,9 +69,9 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
           />
         </Field>
 
-        <Field label="Stage">
-          <select className="select" value={stage} onChange={(e) => setStage(e.target.value as Stage)}>
-            {STAGES.map((s) => (
+        <Field label="Status">
+          <select className="select" value={status} onChange={(e) => setStatus(e.target.value as ProjectStatus)}>
+            {STATUSES.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.label}
               </option>
@@ -88,11 +79,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
           </select>
         </Field>
 
-        <Field label="Due date">
-          <input className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-        </Field>
-
-        <Field label="Colour">
+        <Field label="Colour" span>
           <div className="color-row">
             {PROJECT_COLORS.map((c) => (
               <button

@@ -5,9 +5,9 @@ import { useMemo, useState } from "react";
 import { ProjectForm } from "@/components/ProjectForm";
 import { Icon } from "@/components/Icons";
 import { EmptyState, Pill } from "@/components/ui";
-import { latestUpdate, openBlockersFor, projectHealth } from "@/lib/analytics";
-import { stageMeta } from "@/lib/constants";
-import { dueLabel, relativeDay } from "@/lib/format";
+import { nodesFor } from "@/lib/analytics";
+import { statusMeta } from "@/lib/constants";
+import { fmtShort } from "@/lib/format";
 import { useWorkspace } from "@/lib/store";
 
 export default function HomePage() {
@@ -17,25 +17,9 @@ export default function HomePage() {
   const rows = useMemo(() => {
     return data.projects
       .filter((p) => !p.archived)
-      .map((project) => ({
-        project,
-        latest: latestUpdate(data.updates, project.id),
-        blockers: openBlockersFor(data.blockers, project.id),
-        health: projectHealth(project, data.updates, data.blockers),
-      }))
-      .sort((a, b) => {
-        const aDone = a.project.stage === "done" ? 1 : 0;
-        const bDone = b.project.stage === "done" ? 1 : 0;
-        if (aDone !== bDone) return aDone - bDone;
-        const aDate = a.latest?.updateDate ?? a.project.createdAt.slice(0, 10);
-        const bDate = b.latest?.updateDate ?? b.project.createdAt.slice(0, 10);
-        return bDate.localeCompare(aDate);
-      });
+      .map((project) => ({ project, blockCount: nodesFor(data.nodes, project.id).length }))
+      .sort((a, b) => b.project.updatedAt.localeCompare(a.project.updatedAt));
   }, [data]);
-
-  const active = rows.filter((r) => r.project.stage !== "done").length;
-  const blocked = rows.filter((r) => r.blockers.length > 0).length;
-  const done = rows.length - active;
 
   if (rows.length === 0) {
     return (
@@ -50,7 +34,7 @@ export default function HomePage() {
           <EmptyState
             icon="projects"
             title="No projects yet"
-            message="Add your first project and start posting a short update each day."
+            message="Add your first project, then map its steps on the freeform board."
             action={
               <button className="btn btn-primary" style={{ marginTop: 6 }} type="button" onClick={() => setCreating(true)}>
                 <Icon name="plus" size={15} />
@@ -69,11 +53,7 @@ export default function HomePage() {
       <div className="home-head">
         <div>
           <h1>Projects</h1>
-          <p className="page-sub">
-            {active} active
-            {blocked > 0 && <> · {blocked} blocked</>}
-            {done > 0 && <> · {done} done</>}
-          </p>
+          <p className="page-sub">{rows.length} project{rows.length === 1 ? "" : "s"}</p>
         </div>
         <span className="spacer" />
         <button className="btn btn-ghost btn-sm" type="button" onClick={() => setCreating(true)}>
@@ -83,41 +63,27 @@ export default function HomePage() {
       </div>
 
       <div className="project-grid">
-        {rows.map(({ project, latest, blockers, health }) => {
-          const due = dueLabel(project.dueDate, { done: project.stage === "done" });
-          const detail = blockers.length > 0 ? `${health.label} · ${blockers.length}` : health.label;
+        {rows.map(({ project, blockCount }) => {
+          const status = statusMeta(project.status);
           return (
-            <Link
-              key={project.id}
-              href={`/projects/${project.id}`}
-              className="card project-card"
-            >
+            <Link key={project.id} href={`/projects/${project.id}`} className="card project-card">
               <span className="project-card__stripe" style={{ background: project.color }} />
               <div className="project-card__body">
                 <div className="project-head">
                   <span className="project-name">{project.name}</span>
-                  <Pill tone={health.tone} dot>
-                    {detail}
+                  <Pill tone={status.tone} dot>
+                    {status.label}
                   </Pill>
                 </div>
-                <div className="project-summary">
-                  {latest ? latest.summary : "No updates yet — open it and post the first one."}
-                </div>
+                <div className="project-summary">{project.description || "No description yet."}</div>
                 <div className="project-foot">
-                  <span>{stageMeta(project.stage).label}</span>
-                  <span className="foot-dot" />
-                  <span>{latest ? relativeDay(latest.updateDate) : "Not started"}</span>
-                  {project.owner && (
-                    <>
-                      <span className="foot-dot" />
-                      <span>{project.owner}</span>
-                    </>
-                  )}
-                  <span
-                    className={`project-due${due.tone === "red" ? " due-red" : due.tone === "amber" ? " due-amber" : ""}`}
-                  >
-                    {due.text}
+                  {project.owner && <span>{project.owner}</span>}
+                  {project.owner && <span className="foot-dot" />}
+                  <span>
+                    {blockCount} block{blockCount === 1 ? "" : "s"}
                   </span>
+                  <span className="foot-dot" />
+                  <span>Updated {fmtShort(project.updatedAt.slice(0, 10))}</span>
                 </div>
               </div>
             </Link>
@@ -125,7 +91,7 @@ export default function HomePage() {
         })}
       </div>
 
-      <p className="list-note">Tap a project to see its updates and blockers.</p>
+      <p className="list-note">Tap a project to see its details and freeform board.</p>
 
       {creating && <ProjectForm onClose={() => setCreating(false)} />}
     </>

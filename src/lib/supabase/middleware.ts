@@ -4,6 +4,10 @@ import { isSupabaseConfigured, SUPABASE_ANON_KEY, SUPABASE_URL } from "./config"
 
 const PUBLIC_PREFIXES = ["/login", "/auth"];
 
+// TEMPORARY: auth gate lifted for local UI work on this branch. Flip back to
+// `false` (or delete this line) before sharing the link with anyone.
+const AUTH_DISABLED = true;
+
 /**
  * Refreshes the Supabase session cookie and sends signed-out visitors to
  * /login. No-ops in demo mode so the app still runs without env vars.
@@ -11,7 +15,7 @@ const PUBLIC_PREFIXES = ["/login", "/auth"];
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  if (!isSupabaseConfigured) return response;
+  if (!isSupabaseConfigured || AUTH_DISABLED) return response;
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {

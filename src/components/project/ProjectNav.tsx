@@ -2,12 +2,11 @@
 
 import { Icon, type IconName } from "@/components/Icons";
 
-export type ProjectModule = "overview" | "flow" | "freeform";
+export type ProjectModule = "overview" | "board";
 
 const MODULES: { id: ProjectModule; label: string; icon: IconName }[] = [
   { id: "overview", label: "Overview", icon: "projects" },
-  { id: "flow", label: "Flow", icon: "spark" },
-  { id: "freeform", label: "Free form", icon: "note" },
+  { id: "board", label: "Freeform board", icon: "spark" },
 ];
 
 export function ProjectNav({
@@ -31,7 +30,7 @@ export function ProjectNav({
         >
           <Icon name={m.icon} size={15} />
           <span>{m.label}</span>
-          {m.id === "flow" && nodeCount > 0 && <span className="tab-count">{nodeCount}</span>}
+          {m.id === "board" && nodeCount > 0 && <span className="tab-count">{nodeCount}</span>}
         </button>
       ))}
     </nav>

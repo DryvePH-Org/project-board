@@ -88,21 +88,13 @@ export default function SetupPage() {
                 <p className="small muted" style={{ marginBottom: 8 }}>
                   In Supabase, open <strong>SQL Editor</strong> → New query. Paste the entire contents of{" "}
                   <span className="mono">supabase/schema.sql</span> from this folder and click <strong>Run</strong>. That
-                  creates the three tables, indexes, and the trigger that keeps project progress in sync with updates.
-                </p>
-                <p className="small muted" style={{ marginBottom: 8 }}>
-                  Then run <span className="mono">supabase/phase1_auth.sql</span> the same way. It adds sign-in, a{" "}
-                  <span className="mono">profiles</span> table, and the team allowlist — read the comment at the top of
-                  that file before running it, it tells you to add your own email first.
-                </p>
-                <p className="small muted" style={{ marginBottom: 8 }}>
-                  Then <span className="mono">supabase/phase4_nodes.sql</span>, which adds the checklist's{" "}
-                  <span className="mono">nodes</span> table (and <span className="mono">edges</span>, for the flowchart
-                  view coming later).
+                  sets up sign-in, the team allowlist, and the <span className="mono">projects</span>/
+                  <span className="mono">nodes</span>/<span className="mono">edges</span> tables behind the board — read
+                  the comment at the top of the file first, it tells you to add your own email before anyone can sign up.
                 </p>
                 <p className="small muted">
-                  Optional: run <span className="mono">supabase/seed.sql</span> too if you want a few example projects to
-                  explore before adding real ones.
+                  Optional: run <span className="mono">supabase/seed.sql</span> too if you want a couple of example
+                  projects with a board already mapped out.
                 </p>
               </div>
             </div>
@@ -179,8 +171,7 @@ export default function SetupPage() {
             <div className="row" style={{ alignItems: "flex-start", gap: 9 }}>
               <Icon name="shield" size={16} style={{ marginTop: 2, flex: "none", color: "var(--amber)" }} />
               <p className="small" style={{ color: "var(--ink-2)", lineHeight: 1.6 }}>
-                <strong>Sign-in is required.</strong> After running <span className="mono">schema.sql</span>, also run{" "}
-                <span className="mono">supabase/phase1_auth.sql</span> and add each teammate's email to the{" "}
+                <strong>Sign-in is required.</strong> Add each teammate's email to the{" "}
                 <span className="mono">allowed_emails</span> table — only emails on that list can create an account. Everyone
                 else is sent to <span className="mono">/login</span> and emailed a one-time link, no password required.
               </p>

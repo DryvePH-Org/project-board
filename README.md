@@ -1,8 +1,10 @@
 # Pulseboard
 
-A shared, dead-simple project tracker built for daily use: one list of projects, click one to see its progress, updates and blockers. No login, no dashboards to learn.
+A shared, dead-simple project tracker: a list of projects, and inside each one a freeform board where
+you drop blocks for the steps and connect them to show how the project flows — think a lightweight
+ManyChat-style canvas, not a Gantt chart.
 
-**Stack:** Next.js 15 · React 19 · TypeScript · Supabase (Postgres) · Vercel — all free tiers.
+**Stack:** Next.js 15 · React 19 · TypeScript · Supabase (Postgres) · `@xyflow/react` · Vercel — all free tiers.
 
 ---
 
@@ -10,13 +12,14 @@ A shared, dead-simple project tracker built for daily use: one list of projects,
 
 | Screen | What you get |
 |---|---|
-| **Projects** (home) | One row per project: name, health/blocker pill, latest update summary, stage, owner, progress %, due date and a thin progress bar. Sorted active-first, then most recently updated. |
-| **Project detail** | Header with status, description, owner, due date, hours logged and progress. Inline “Today’s update” composer, inline blockers (add / resolve / delete), full update history, and edit/delete. |
+| **Projects** (home) | A two-column grid of cards: name, status pill, owner, block count, and when it was last touched. |
+| **Project → Overview** | The project's description, status, owner, and a couple of quick stats. Edit or delete the project from here. |
+| **Project → Freeform board** | A full-screen canvas of draggable blocks. Add a block, drag it anywhere (position is saved), pull from its edge to another block to link them, click a block to comment/suggest, add a note, or change its state. Flag any link as blocked with a reason, right on the line. |
 
-Daily updates capture: what moved · progress % · status, with optional date · reporter · hours · next step · blocker note under **More options**.
-Saving an update updates the project's progress and status automatically (a Postgres trigger keeps it consistent).
+Lines animate to show flow direction, and turn red when flagged as blocked. A recenter button finds your
+blocks again if you've panned or zoomed away. "Exit full screen" returns to the normal project page.
 
-Keyboard: `n` = new project, `u` = log update, `Esc` = close dialog.
+Keyboard: `n` = new project, `Esc` = close a dialog.
 
 ---
 
@@ -27,24 +30,25 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. With no environment variables the app runs in **demo mode**: seeded example data stored in your browser's local storage. Everything is clickable and testable. Changes are not shared with anyone.
+Open http://localhost:3000. With no environment variables the app runs in **demo mode**: seeded example
+data stored in your browser's local storage. Everything is clickable and testable. Changes are not shared
+with anyone.
 
 ---
 
 ## Connect Supabase (≈5 minutes, free)
 
 1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard).
-2. Apply the SQL. Either from the dashboard (**SQL Editor → New query**, paste a file, **Run**)
-   in this order — `supabase/schema.sql`, then `supabase/phase1_auth.sql` (read the comment at the
-   top first: it has you add your own email to the team allowlist before anyone can sign up),
-   then `supabase/phase4_nodes.sql` — or from the command line:
+2. Apply the SQL. Either from the dashboard (**SQL Editor → New query**, paste `supabase/schema.sql`,
+   **Run** — read the comment at the top first, it has you add your own email to the team allowlist
+   before anyone can sign up) — or from the command line:
 
    ```bash
    # .env.local needs DATABASE_URL (Project Settings → Database → Connection string, Direct)
    npm run migrate
    ```
 
-   All three files are safe to re-run. Optionally load example rows with `supabase/seed.sql`.
+   Safe to re-run. Optionally load a couple of example projects with `supabase/seed.sql`.
 3. Copy **Project URL** and the **anon public** key from **Project Settings → API**.
 4. Create `.env.local`:
 
@@ -60,58 +64,43 @@ NEXT_PUBLIC_TEAM_NAME=My Team
    token — sign-in appears to do nothing.
 6. Restart `npm run dev`. The yellow demo strip disappears once data is coming from Supabase.
 
-The app polls the database every 60 seconds while the tab is visible, so teammates see changes without reloading. The whole `/setup` page inside the app repeats these instructions for anyone else on the team.
+The app polls the database every 60 seconds while the tab is visible, so teammates see changes without
+reloading. The `/setup` page inside the app repeats these instructions for anyone else on the team.
 
 ### Deploy to Vercel
 
 1. Push this folder to a GitHub repository.
-2. In Vercel: **Add New → Project → Import** the repo. Framework is detected as Next.js; no build settings needed.
+2. In Vercel: **Add New → Project → Import** the repo. Framework is detected as Next.js; no build
+   settings needed.
 3. Add the three environment variables above (Production + Preview), then **Deploy**.
 4. Share the resulting `*.vercel.app` URL with the team.
-
-Any static/free host works in demo mode, but Supabase needs a Node-capable host — Vercel's Hobby plan is free and more than enough.
 
 ---
 
 ## Data model
 
 ```
-projects   id · name · description · owner · stage · priority · status
-           start_date · due_date · progress · color · archived · timestamps
+projects   id · name · description · owner · status (on_track|at_risk|blocked|done)
+           color · archived · timestamps
 
-updates    id · project_id → projects · update_date · status · progress
-           hours · summary · next_step · blockers_note · author · created_at
+nodes      id · project_id → projects · title · note
+           state (idea|planned|in_progress|blocked|done) · position_x · position_y · created_at
 
-blockers   id · project_id → projects · title · detail · severity
-           status (open|resolved) · owner · created_at · resolved_at
+edges      id · project_id → projects · source_id → nodes · target_id → nodes
+           blocked · blocker_note · created_at
 
-nodes      id · project_id → projects · title · note · kind (step|milestone|question)
-           state (idea|planned|in_progress|blocked|done) · due_date · created_by · created_at
+comments   id · node_id → nodes · project_id → projects · body · author · created_at
 ```
 
-`supabase/schema.sql` also creates:
-- indexes for list and detail queries,
-- `touch_updated_at()` on projects,
-- `sync_project_from_update()` — a trigger that copies the newest update's progress/status onto its project, and flips the stage to `done` when the update says done.
+A node's `position_x`/`position_y` is the only "layout" — the board is freeform, not auto-arranged.
+Dragging a block persists its new position.
 
 ---
 
-## Customising your workflow
+## Customising
 
-Stage names, order, and hints live in one place: `src/lib/constants.ts`.
-
-```ts
-export const STAGES = [
-  { id: "backlog",     label: "Backlog",     hint: "Not started yet" },
-  { id: "planning",    label: "Planning",    hint: "Scoping and scheduling" },
-  { id: "in_progress", label: "In Progress", hint: "Actively being worked" },
-  { id: "review",      label: "Review",      hint: "Awaiting feedback or QA" },
-  { id: "launch",      label: "Launch",      hint: "Shipping this week" },
-  { id: "done",        label: "Done",        hint: "Delivered and closed" },
-];
-```
-
-If you add or rename a stage, update the `check` constraint in `schema.sql` (and run the altered statement) so the database accepts it. Project colours are in `PROJECT_COLORS` in the same file.
+Project statuses and node states live in `src/lib/constants.ts`. Project card colours are in
+`PROJECT_COLORS` in the same file.
 
 ---
 
@@ -127,12 +116,13 @@ If you add or rename a stage, update the `check` constraint in `schema.sql` (and
 
 ## Security
 
-Sign-in is required. After `schema.sql`, also run `supabase/phase1_auth.sql` in the SQL editor — it adds:
+Sign-in is required. `schema.sql` sets up:
 
 - Supabase Auth (email magic links), with `middleware.ts` redirecting signed-out visitors to `/login`.
 - A `profiles` table, filled automatically on signup by a trigger.
-- A team allowlist (`allowed_emails`): sign-ups from any other email are rejected. Add your team's emails there before sharing the link.
-- RLS policies on `projects` / `updates` / `blockers` scoped to `authenticated`, replacing the original anon-write policies.
+- A team allowlist (`allowed_emails`): sign-ups from any other email are rejected. Add your team's
+  emails there before sharing the link.
+- RLS policies on `projects` / `nodes` / `edges` scoped to `authenticated`.
 
 Demo mode (no env vars) has no login — it's local-only, nothing to protect.
 
@@ -143,21 +133,28 @@ Demo mode (no env vars) has no login — it's local-only, nothing to protect.
 ```
 src/
   app/
-    page.tsx                 Projects list (the home screen)
-    projects/[id]/page.tsx   Project detail: composer, blockers, updates
-    setup/page.tsx           In-app setup guide + connection check
-    layout.tsx, globals.css  Shell and design system
-  components/                AppShell, project/update forms, UI primitives
+    page.tsx                        Projects list (the home screen)
+    projects/[id]/page.tsx          Project detail: sidebar + overview/board
+    setup/page.tsx                  In-app setup guide + connection check
+    layout.tsx, globals.css         Shell and design system
+  components/
+    AppShell.tsx, ProjectForm.tsx   App chrome, project create/edit
+    project/                        ProjectNav, ProjectHeader, Overview + board modules
+    flow/                           FlowCanvas (React Flow), FlowNode, NodeInspector
   lib/
-    types.ts                 Domain types + Repository interface
-    constants.ts             Stages, statuses, severities, colours
-    analytics.ts             Latest update, blockers, health
-    store.tsx                React context, mutations, polling, toasts
-    supabaseRepo.ts          Supabase adapter (snake_case ↔ camelCase)
-    demoRepo.ts              Local-storage adapter with seed data
+    types.ts                        Domain types + Repository interface
+    constants.ts                    Statuses, node states, colours
+    flow.ts                         React Flow <-> ProjectNode/ProjectEdge mapping
+    analytics.ts                    Small per-project selectors
+    store.tsx                       React context, mutations, polling, toasts
+    supabaseRepo.ts                 Supabase adapter (snake_case ↔ camelCase)
+    demoRepo.ts                     Local-storage adapter with seed data
 supabase/
-  schema.sql                 Tables, indexes, triggers, RLS
-  seed.sql                   Optional demo rows
+  schema.sql                        Auth, projects, nodes, edges, RLS — one file
+  seed.sql                          Optional demo rows
+scripts/
+  migrate.js                        Runs schema.sql (+ seed.sql if present) via DATABASE_URL
 ```
 
-The `Repository` interface means the UI never talks to Supabase directly. Adding a different backend (Airtable, SQLite, an API you own) is a single new adapter file.
+The `Repository` interface means the UI never talks to Supabase directly. Adding a different backend
+(Airtable, SQLite, an API you own) is a single new adapter file.
