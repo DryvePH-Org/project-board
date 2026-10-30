@@ -22,12 +22,14 @@ export function NodeInspector({
   onClose: () => void;
   onDelete: (id: string) => void;
 }) {
-  const { user, updateNode, addComment, deleteComment } = useWorkspace();
+  const { user, updateNode, addComment, updateComment, deleteComment } = useWorkspace();
   const [title, setTitle] = useState(node.title);
   const [note, setNote] = useState(node.note);
   const [commentBody, setCommentBody] = useState("");
   const [posting, setPosting] = useState(false);
   const commentRef = useRef<HTMLTextAreaElement>(null);
+  const openComments = comments.filter((comment) => !comment.resolved);
+  const resolvedComments = comments.filter((comment) => comment.resolved);
 
   useEffect(() => {
     setTitle(node.title);
@@ -113,16 +115,60 @@ export function NodeInspector({
 
       <div className="node-inspector__comments">
         <span className="node-inspector__comments-head">
-          <Icon name="comment" size={13} /> Comments{comments.length > 0 ? ` (${comments.length})` : ""}
+          <Icon name="comment" size={13} /> Comments{openComments.length > 0 ? ` (${openComments.length})` : ""}
         </span>
 
-        {comments.length > 0 && (
+        {openComments.length > 0 && (
           <div className="node-inspector__comment-list">
-            {comments.map((c) => (
+            {openComments.map((c) => (
               <div key={c.id} className="node-inspector__comment">
                 <div className="node-inspector__comment-meta">
                   <strong>{c.author || "Teammate"}</strong>
                   <span>{fmtShort(c.createdAt.slice(0, 10))}</span>
+                  <button
+                    type="button"
+                    className="btn btn-icon"
+                    title="Mark resolved"
+                    aria-label="Resolve comment"
+                    onClick={() => void updateComment(c.id, { resolved: true })}
+                  >
+                    <Icon name="check" size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-icon"
+                    title="Delete comment"
+                    aria-label="Delete comment"
+                    onClick={() => void deleteComment(c.id)}
+                  >
+                    <Icon name="trash" size={11} />
+                  </button>
+                </div>
+                <p>{c.body}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {resolvedComments.length > 0 && (
+          <div className="node-inspector__resolved">
+            <span className="node-inspector__resolved-label">
+              <Icon name="check" size={11} /> Resolved ({resolvedComments.length})
+            </span>
+            {resolvedComments.map((c) => (
+              <div key={c.id} className="node-inspector__comment is-resolved">
+                <div className="node-inspector__comment-meta">
+                  <strong>{c.author || "Teammate"}</strong>
+                  <span>{fmtShort(c.createdAt.slice(0, 10))}</span>
+                  <button
+                    type="button"
+                    className="btn btn-icon"
+                    title="Reopen comment"
+                    aria-label="Reopen comment"
+                    onClick={() => void updateComment(c.id, { resolved: false })}
+                  >
+                    <Icon name="undo" size={11} />
+                  </button>
                   <button
                     type="button"
                     className="btn btn-icon"

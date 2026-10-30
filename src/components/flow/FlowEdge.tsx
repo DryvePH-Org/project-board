@@ -1,10 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from "@xyflow/react";
+import { createContext, useContext } from "react";
+import { BaseEdge, EdgeLabelRenderer, getBezierPath, useStore, type EdgeProps } from "@xyflow/react";
 import { Icon } from "@/components/Icons";
 import { useWorkspace } from "@/lib/store";
 import type { FlowEdgeType } from "@/lib/flow";
+import type { EdgeBlocker } from "@/lib/types";
+import { useOverlayPanel } from "./OverlayLayout";
+
+function newBlockerId() {
+  return `b-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+/** Popover UI state lives above React Flow because edge components remount
+ * whenever the board data refreshes. */
+export interface EdgePopoverState {
+  openEdgeIds: string[];
+  openEdge: (id: string) => void;
+  closeEdge: (id: string) => void;
+  drafts: Record<string, string>;
+  setDraft: (id: string, value: string) => void;
+}
+
+export const EdgePopoverContext = createContext<EdgePopoverState | null>(null);
 
 export function FlowEdgeButton({
   id,
@@ -18,9 +36,14 @@ export function FlowEdgeButton({
   markerEnd,
   data,
 }: EdgeProps<FlowEdgeType>) {
-  const { updateEdge, deleteEdge } = useWorkspace();
-  const [open, setOpen] = useState(false);
-  const [note, setNote] = useState(data?.blockerNote ?? "");
+  const { updateEdge, deleteEdge, notify } = useWorkspace();
+  const popover = useContext(EdgePopoverContext);
+  const open = popover?.openEdgeIds.includes(id) ?? false;
+  const note = popover?.drafts[id] ?? "";
+  // Edge labels live inside the zoomed viewport, so measurements must be
+  // converted back to local pixels before they become an offset.
+  const zoom = useStore((state) => state.transform[2]);
+  const setPopoverRef = useOverlayPanel<HTMLFormElement>(`blocker:${id}`, open, zoom);
 
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -31,22 +54,40 @@ export function FlowEdgeButton({
     targetPosition,
   });
 
-  const blocked = Boolean(data?.blocked);
+  const blockers = data?.blockers ?? [];
+  const openBlockers = blockers.filter((blocker) => !blocker.resolved);
+  const resolvedBlockers = blockers.filter((blocker) => blocker.resolved);
+  const blocked = openBlockers.length > 0;
+  const waiting = Boolean(data?.waiting);
 
   function openPopover() {
-    setNote(data?.blockerNote ?? "");
-    setOpen(true);
+    popover?.setDraft(id, "");
+    popover?.openEdge(id);
   }
 
-  async function saveBlocker(e: React.FormEvent) {
+  function closePopover() {
+    popover?.closeEdge(id);
+  }
+
+  async function addBlocker(e: React.FormEvent) {
     e.preventDefault();
-    await updateEdge(id, { blocked: true, blockerNote: note.trim() });
-    setOpen(false);
+    const text = note.trim();
+    if (!text) return;
+    await updateEdge(id, {
+      blockers: [...blockers, { id: newBlockerId(), text, resolved: false }],
+    });
+    popover?.setDraft(id, "");
+    notify("Blocker added");
   }
 
-  async function clearBlocker() {
-    await updateEdge(id, { blocked: false, blockerNote: "" });
-    setOpen(false);
+  async function setBlockerResolved(blocker: EdgeBlocker, resolved: boolean) {
+    await updateEdge(id, {
+      blockers: blockers.map((item) => (item.id === blocker.id ? { ...item, resolved } : item)),
+    });
+  }
+
+  async function removeBlocker(blockerId: string) {
+    await updateEdge(id, { blockers: blockers.filter((item) => item.id !== blockerId) });
   }
 
   async function unlink() {
@@ -65,39 +106,108 @@ export function FlowEdgeButton({
         >
           <button
             type="button"
-            className={`edge-btn${blocked ? " edge-btn--blocked" : ""}`}
-            title={blocked ? data?.blockerNote || "Blocked" : "Flag a blocker on this link"}
-            aria-label={blocked ? "Edit blocker" : "Add blocker"}
+            className={`edge-btn${blocked ? " edge-btn--blocked" : ""}${waiting ? " edge-btn--waiting" : ""}`}
+            title={
+              blocked
+                ? `${openBlockers.length} blocker${openBlockers.length === 1 ? "" : "s"}: ${openBlockers[0].text}`
+                : "Flag a blocker on this link"
+            }
+            aria-label={blocked ? "Edit blockers" : "Add blocker"}
             onClick={openPopover}
           >
             <Icon name={blocked ? "alert" : "plus"} size={12} />
           </button>
 
           {open && (
-            <form className="edge-popover" onSubmit={saveBlocker}>
+            <form
+              ref={setPopoverRef}
+              className="edge-popover nodrag nopan nowheel"
+              onSubmit={addBlocker}
+            >
+              {openBlockers.length > 0 && (
+                <ul className="edge-popover__blockers">
+                  {openBlockers.map((blocker) => (
+                    <li key={blocker.id} className="edge-popover__blocker">
+                      <Icon name="alert" size={12} />
+                      <span>{blocker.text}</span>
+                      <button
+                        type="button"
+                        className="btn btn-icon"
+                        title="Mark resolved"
+                        aria-label="Resolve blocker"
+                        onClick={() => void setBlockerResolved(blocker, true)}
+                      >
+                        <Icon name="check" size={11} />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-icon"
+                        title="Remove blocker"
+                        aria-label="Remove blocker"
+                        onClick={() => void removeBlocker(blocker.id)}
+                      >
+                        <Icon name="close" size={11} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {resolvedBlockers.length > 0 && (
+                <div className="edge-popover__resolved">
+                  <span className="edge-popover__resolved-label">
+                    <Icon name="check" size={11} /> Resolved ({resolvedBlockers.length})
+                  </span>
+                  <ul className="edge-popover__blockers">
+                    {resolvedBlockers.map((blocker) => (
+                      <li key={blocker.id} className="edge-popover__blocker is-resolved">
+                        <Icon name="check" size={12} />
+                        <span>{blocker.text}</span>
+                        <button
+                          type="button"
+                          className="btn btn-icon"
+                          title="Reopen blocker"
+                          aria-label="Reopen blocker"
+                          onClick={() => void setBlockerResolved(blocker, false)}
+                        >
+                          <Icon name="undo" size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-icon"
+                          title="Remove blocker"
+                          aria-label="Remove blocker"
+                          onClick={() => void removeBlocker(blocker.id)}
+                        >
+                          <Icon name="close" size={11} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <textarea
                 className="textarea textarea-sm"
                 autoFocus
                 value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="What's blocking this step?"
-                style={{ minHeight: 50 }}
+                onChange={(e) => popover?.setDraft(id, e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") closePopover();
+                }}
+                placeholder={blocked ? "Add another blocker…" : "What's blocking this step?"}
+                style={{ minHeight: 120 }}
               />
               <div className="edge-popover__actions">
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => void unlink()} title="Remove this link">
                   <Icon name="trash" size={12} />
                 </button>
-                {blocked && (
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => void clearBlocker()}>
-                    Clear
-                  </button>
-                )}
                 <span className="spacer" />
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>
-                  Cancel
+                <button type="button" className="btn btn-ghost btn-sm" onClick={closePopover}>
+                  Close
                 </button>
-                <button type="submit" className="btn btn-primary btn-sm">
-                  Save
+                <button type="submit" className="btn btn-primary btn-sm" disabled={!note.trim()}>
+                  Add
                 </button>
               </div>
             </form>

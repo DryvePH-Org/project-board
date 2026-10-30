@@ -2,6 +2,7 @@ import { getSupabase } from "./supabase";
 import type {
   CommentInput,
   DataSet,
+  EdgeBlocker,
   EdgeInput,
   NodeComment,
   NodeInput,
@@ -41,14 +42,38 @@ function nodeFromRow(row: Row): ProjectNode {
   };
 }
 
+function blockerFromRow(value: unknown, edgeId: string, index: number): EdgeBlocker | null {
+  if (typeof value === "string") {
+    const text = value.trim();
+    return text ? { id: `${edgeId}-b${index}`, text, resolved: false } : null;
+  }
+  if (value && typeof value === "object") {
+    const row = value as Row;
+    const text = String(row.text ?? "").trim();
+    if (!text) return null;
+    return {
+      id: String(row.id ?? `${edgeId}-b${index}`),
+      text,
+      resolved: Boolean(row.resolved),
+    };
+  }
+  return null;
+}
+
 function edgeFromRow(row: Row): ProjectEdge {
+  const edgeId = String(row.id);
+  const legacyNote = String(row.blocker_note ?? "");
+  // The table still has a single blocker_note column until the blockers
+  // migration lands; keep legacy rows readable in the meantime.
+  const stored = Array.isArray(row.blockers) ? row.blockers : legacyNote ? [legacyNote] : [];
   return {
-    id: String(row.id),
+    id: edgeId,
     projectId: String(row.project_id),
     sourceId: String(row.source_id),
     targetId: String(row.target_id),
-    blocked: Boolean(row.blocked),
-    blockerNote: String(row.blocker_note ?? ""),
+    blockers: stored
+      .map((value, index) => blockerFromRow(value, edgeId, index))
+      .filter((blocker): blocker is EdgeBlocker => blocker !== null),
     createdAt: String(row.created_at ?? ""),
   };
 }
@@ -60,6 +85,7 @@ function commentFromRow(row: Row): NodeComment {
     projectId: String(row.project_id),
     body: String(row.body ?? ""),
     author: String(row.author ?? ""),
+    resolved: Boolean(row.resolved),
     createdAt: String(row.created_at ?? ""),
   };
 }
@@ -165,8 +191,11 @@ export const supabaseRepository: Repository = {
   async updateEdge(id: string, patch: Partial<ProjectEdge>) {
     const supabase = getSupabase();
     const row: Row = {};
-    if (patch.blocked !== undefined) row.blocked = patch.blocked;
-    if (patch.blockerNote !== undefined) row.blocker_note = patch.blockerNote;
+    if (patch.blockers !== undefined) {
+      const open = patch.blockers.filter((blocker) => !blocker.resolved);
+      row.blocked = open.length > 0;
+      row.blocker_note = open.map((blocker) => blocker.text).join("\n");
+    }
 
     const { error } = await supabase.from("edges").update(row).eq("id", id);
     if (error) throw new Error(error.message);
@@ -186,6 +215,16 @@ export const supabaseRepository: Repository = {
       body: input.body,
       author: input.author,
     });
+    if (error) throw new Error(error.message);
+  },
+
+  async updateComment(id: string, patch: Partial<NodeComment>) {
+    const supabase = getSupabase();
+    const row: Row = {};
+    if (patch.body !== undefined) row.body = patch.body;
+    if (patch.resolved !== undefined) row.resolved = patch.resolved;
+
+    const { error } = await supabase.from("comments").update(row).eq("id", id);
     if (error) throw new Error(error.message);
   },
 

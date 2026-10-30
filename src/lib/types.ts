@@ -26,15 +26,22 @@ export interface ProjectNode {
   createdAt: string;
 }
 
-/** An arrow between two nodes on the board. Can be flagged as blocked, with
- * a short reason, directly from the line. */
+/** A blocker note on a link. Resolved blockers stay on the link for history
+ * but no longer stop the flow. */
+export interface EdgeBlocker {
+  id: string;
+  text: string;
+  resolved: boolean;
+}
+
+/** An arrow between two nodes on the board. Can carry any number of blocker
+ * notes, added directly from the line. */
 export interface ProjectEdge {
   id: string;
   projectId: string;
   sourceId: string;
   targetId: string;
-  blocked: boolean;
-  blockerNote: string;
+  blockers: EdgeBlocker[];
   createdAt: string;
 }
 
@@ -45,6 +52,7 @@ export interface NodeComment {
   projectId: string;
   body: string;
   author: string;
+  resolved: boolean;
   createdAt: string;
 }
 
@@ -98,5 +106,6 @@ export interface Repository {
   updateEdge(id: string, patch: Partial<ProjectEdge>): Promise<void>;
   deleteEdge(id: string): Promise<void>;
   addComment(input: CommentInput): Promise<void>;
+  updateComment(id: string, patch: Partial<NodeComment>): Promise<void>;
   deleteComment(id: string): Promise<void>;
 }

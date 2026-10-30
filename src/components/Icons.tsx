@@ -22,7 +22,8 @@ export type IconName =
   | "comment"
   | "maximize"
   | "minimize"
-  | "target";
+  | "target"
+  | "undo";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   projects: (
@@ -160,6 +161,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <circle cx="12" cy="12" r="8" />
       <circle cx="12" cy="12" r="3" />
       <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+    </>
+  ),
+  undo: (
+    <>
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10a6 6 0 0 1 0 12h-3" />
     </>
   ),
 };

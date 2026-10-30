@@ -1,6 +1,7 @@
 import type {
   CommentInput,
   DataSet,
+  EdgeBlocker,
   EdgeInput,
   NodeComment,
   NodeInput,
@@ -111,19 +112,24 @@ function seed(): DataSet {
   ];
 
   const edges: ProjectEdge[] = [
-    { id: "e-1", projectId: "p-northwind", sourceId: "n-1", targetId: "n-2", blocked: false, blockerNote: "", createdAt: now },
-    { id: "e-2", projectId: "p-northwind", sourceId: "n-1", targetId: "n-3", blocked: false, blockerNote: "", createdAt: now },
-    { id: "e-3", projectId: "p-northwind", sourceId: "n-2", targetId: "n-4", blocked: false, blockerNote: "", createdAt: now },
+    { id: "e-1", projectId: "p-northwind", sourceId: "n-1", targetId: "n-2", blockers: [], createdAt: now },
+    { id: "e-2", projectId: "p-northwind", sourceId: "n-1", targetId: "n-3", blockers: [], createdAt: now },
+    { id: "e-3", projectId: "p-northwind", sourceId: "n-2", targetId: "n-4", blockers: [], createdAt: now },
     {
       id: "e-4",
       projectId: "p-northwind",
       sourceId: "n-3",
       targetId: "n-4",
-      blocked: true,
-      blockerNote: "Waiting on final copy from marketing before this can move.",
+      blockers: [
+        {
+          id: "b-1",
+          text: "Waiting on final copy from marketing before this can move.",
+          resolved: false,
+        },
+      ],
       createdAt: now,
     },
-    { id: "e-5", projectId: "p-northwind", sourceId: "n-4", targetId: "n-5", blocked: false, blockerNote: "", createdAt: now },
+    { id: "e-5", projectId: "p-northwind", sourceId: "n-4", targetId: "n-5", blockers: [], createdAt: now },
   ];
 
   const comments: NodeComment[] = [
@@ -133,11 +139,46 @@ function seed(): DataSet {
       projectId: "p-northwind",
       body: "Should we use the new hero photo here instead of the placeholder?",
       author: "Maya",
+      resolved: false,
       createdAt: now,
     },
   ];
 
   return { projects, nodes, edges, comments };
+}
+
+/** Older saves stored blockers as plain strings, or a single `blocked` /
+ * `blockerNote` pair per edge. Bring everything up to structured blockers. */
+type StoredBlocker = string | Partial<EdgeBlocker>;
+
+function normalizeBlocker(value: StoredBlocker, edgeId: string, index: number): EdgeBlocker | null {
+  const source = typeof value === "string" ? { text: value } : value;
+  const text = String(source.text ?? "").trim();
+  if (!text) return null;
+  return {
+    id: String(source.id ?? `${edgeId}-b${index}`),
+    text,
+    resolved: Boolean(source.resolved),
+  };
+}
+
+function normalizeEdge(
+  edge: ProjectEdge & { blocked?: boolean; blockerNote?: string },
+): ProjectEdge {
+  const stored: StoredBlocker[] = Array.isArray(edge.blockers)
+    ? (edge.blockers as unknown as StoredBlocker[])
+    : edge.blockerNote
+      ? [edge.blockerNote]
+      : [];
+  const blockers = stored
+    .map((value, index) => normalizeBlocker(value, edge.id, index))
+    .filter((blocker): blocker is EdgeBlocker => blocker !== null);
+  const { blocked, blockerNote, ...rest } = edge;
+  return { ...rest, blockers };
+}
+
+function normalizeComment(comment: NodeComment): NodeComment {
+  return { ...comment, resolved: Boolean(comment.resolved) };
 }
 
 function read(): DataSet {
@@ -153,8 +194,8 @@ function read(): DataSet {
     return {
       projects: parsed.projects ?? [],
       nodes: parsed.nodes ?? [],
-      edges: parsed.edges ?? [],
-      comments: parsed.comments ?? [],
+      edges: (parsed.edges ?? []).map(normalizeEdge),
+      comments: (parsed.comments ?? []).map(normalizeComment),
     };
   } catch {
     const data = seed();
@@ -235,8 +276,7 @@ export const demoRepository: Repository = {
     const edge: ProjectEdge = {
       id: uid(),
       ...input,
-      blocked: false,
-      blockerNote: "",
+      blockers: [],
       createdAt: new Date().toISOString(),
     };
     data.edges.push(edge);
@@ -260,9 +300,16 @@ export const demoRepository: Repository = {
     const comment: NodeComment = {
       id: uid(),
       ...input,
+      resolved: false,
       createdAt: new Date().toISOString(),
     };
     data.comments.push(comment);
+    write(data);
+  },
+
+  async updateComment(id, patch) {
+    const data = read();
+    data.comments = data.comments.map((c) => (c.id === id ? { ...c, ...patch } : c));
     write(data);
   },
 

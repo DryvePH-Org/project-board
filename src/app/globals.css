@@ -945,8 +945,9 @@ textarea {
 
 .flow-add {
   display: flex;
+  flex-direction: column;
   gap: 6px;
-  align-items: center;
+  align-items: stretch;
   padding: 7px 8px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -954,8 +955,62 @@ textarea {
   box-shadow: var(--shadow-sm);
 }
 
+.flow-add__row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 .flow-add .input {
   width: 168px;
+  flex: 1;
+}
+
+.flow-add__quick {
+  display: flex;
+  gap: 4px;
+}
+
+.flow-add__quick-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 7px;
+  font-size: 10.5px;
+  font-weight: 650;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.flow-add__quick-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.flow-add__quick-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.flow-add__quick-btn--idea .flow-add__quick-dot {
+  background: var(--muted);
+}
+
+.flow-add__quick-btn--in_progress .flow-add__quick-dot {
+  background: var(--amber);
+}
+
+.flow-add__quick-btn--done .flow-add__quick-dot {
+  background: var(--green);
 }
 
 .flow-add--centered {
@@ -1071,6 +1126,7 @@ textarea {
 /* Edge midpoint "add a blocker" button + popover */
 .edge-btn-wrap {
   position: absolute;
+  z-index: 10;
   pointer-events: all;
 }
 
@@ -1096,12 +1152,18 @@ textarea {
   background: var(--red-soft);
 }
 
+.edge-btn--waiting {
+  border-color: #a9acd9;
+  color: #a9acd9;
+  background: var(--surface-2);
+}
+
 .edge-popover {
   position: absolute;
   top: 28px;
   left: 50%;
   transform: translateX(-50%);
-  width: 220px;
+  width: 260px;
   padding: 10px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -1117,6 +1179,121 @@ textarea {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.edge-popover__blockers {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.edge-popover__blocker {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  background: var(--red-soft);
+  border-radius: 8px;
+}
+
+.edge-popover__blocker > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--red);
+}
+
+.edge-popover__blocker span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.edge-popover__blocker .btn-icon {
+  flex: none;
+  padding: 0;
+}
+
+/* Resolved items stay visible but recede */
+.is-resolved {
+  opacity: 0.62;
+}
+
+.comment-thread__item.is-resolved p,
+.node-inspector__comment.is-resolved p,
+.board-notes__comment.is-resolved p,
+.board-notes__notes li.is-resolved,
+.edge-popover__blocker.is-resolved span {
+  text-decoration: line-through;
+}
+
+.edge-popover__blocker.is-resolved {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.edge-popover__blocker.is-resolved > svg {
+  color: var(--green);
+}
+
+.edge-popover__resolved {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.edge-popover__resolved-label,
+.comment-thread__resolved-label,
+.node-inspector__resolved-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.edge-popover__resolved-label > svg,
+.comment-thread__resolved-label > svg,
+.node-inspector__resolved-label > svg {
+  color: var(--green);
+}
+
+.comment-thread__resolved {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.node-inspector__resolved {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.board-notes__resolved-label {
+  margin: 6px 0 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 /* Inspector panel, inside the canvas so it cannot fight modal z-index */
@@ -1226,6 +1403,239 @@ textarea {
   width: 100%;
   color: var(--red);
   border-color: var(--red-soft);
+}
+
+.btn-outline--active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--surface-3);
+}
+
+/* Board-wide comments & blockers drawer */
+.board-notes {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 7;
+  width: 320px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  animation: pop 0.15s ease;
+}
+
+.board-notes__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.board-notes__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.board-notes__section + .board-notes__section {
+  margin-top: 14px;
+}
+
+.board-notes__section h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.board-notes__section h4 .tab-count {
+  margin-left: auto;
+}
+
+.board-notes__item {
+  padding: 9px 10px;
+  margin-bottom: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.board-notes__label {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.board-notes__notes {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.board-notes__notes li {
+  position: relative;
+  padding-left: 12px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.board-notes__notes li::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.board-notes__comment + .board-notes__comment {
+  margin-top: 7px;
+}
+
+.board-notes__meta {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.board-notes__meta strong {
+  color: var(--ink-2);
+}
+
+.board-notes__comment p {
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Floating comment thread, anchored beside a block */
+.comment-thread {
+  position: relative;
+  width: 270px;
+  padding: 10px 12px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  animation: pop 0.15s ease;
+}
+
+/* little pointer toward the block */
+.comment-thread::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -6px;
+  width: 10px;
+  height: 10px;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.comment-thread__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.comment-thread__title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.comment-thread__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  padding-right: 2px;
+}
+
+.comment-thread__item {
+  display: flex;
+  gap: 8px;
+}
+
+.comment-thread__item .avatar {
+  width: 22px;
+  height: 22px;
+  font-size: 9px;
+  margin-top: 1px;
+}
+
+.comment-thread__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-thread__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.comment-thread__meta strong {
+  color: var(--ink-2);
+}
+
+.comment-thread__meta .btn-icon {
+  margin-left: auto;
+  padding: 2px;
+}
+
+.comment-thread__content p {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  margin-top: 1px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.comment-thread__form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.comment-thread__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .select-sm {

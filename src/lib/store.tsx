@@ -17,6 +17,7 @@ import type {
   CommentInput,
   DataSet,
   EdgeInput,
+  NodeComment,
   NodeInput,
   Project,
   ProjectEdge,
@@ -52,6 +53,7 @@ interface WorkspaceValue {
   updateEdge: (id: string, patch: Partial<ProjectEdge>) => Promise<boolean>;
   deleteEdge: (id: string) => Promise<boolean>;
   addComment: (input: CommentInput) => Promise<boolean>;
+  updateComment: (id: string, patch: Partial<NodeComment>) => Promise<boolean>;
   deleteComment: (id: string) => Promise<boolean>;
   notify: (message: string, tone?: ToastTone) => void;
   toasts: Toast[];
@@ -151,9 +153,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       },
       deleteNode: (id) => run(() => repo.deleteNode(id), "Node removed"),
       addEdge: (input) => run(() => repo.addEdge(input), ""),
-      updateEdge: (id, patch) => run(() => repo.updateEdge(id, patch), patch.blocked !== undefined ? (patch.blocked ? "Blocker added" : "Blocker cleared") : ""),
+      updateEdge: (id, patch) => run(() => repo.updateEdge(id, patch), ""),
       deleteEdge: (id) => run(() => repo.deleteEdge(id), "Link removed"),
       addComment: (input) => run(() => repo.addComment(input), "Comment added"),
+      updateComment: (id, patch) => run(() => repo.updateComment(id, patch), ""),
       deleteComment: (id) => run(() => repo.deleteComment(id), "Comment removed"),
       notify,
       toasts,
