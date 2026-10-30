@@ -11,7 +11,7 @@ import { OverviewModule } from "@/components/project/OverviewModule";
 import { ProjectHeader } from "@/components/project/ProjectHeader";
 import { ProjectNav, moduleFromParam } from "@/components/project/ProjectNav";
 import { EmptyState } from "@/components/ui";
-import { nodesFor, openBlockersFor, projectBlockers, projectHealth, updatesFor } from "@/lib/analytics";
+import { edgesFor, nodesFor, openBlockersFor, projectBlockers, projectHealth, updatesFor } from "@/lib/analytics";
 import { dueLabel, formatHours } from "@/lib/format";
 import { useWorkspace } from "@/lib/store";
 
@@ -41,6 +41,7 @@ function ProjectDetail() {
     [data.blockers, project],
   );
   const nodes = useMemo(() => (project ? nodesFor(data.nodes, project.id) : []), [data.nodes, project]);
+  const edges = useMemo(() => (project ? edgesFor(data.edges, project.id) : []), [data.edges, project]);
 
   const [editOpen, setEditOpen] = useState(false);
   const [focusComposer, setFocusComposer] = useState(false);
@@ -111,7 +112,7 @@ function ProjectDetail() {
               open={openBlockersFor(data.blockers, project.id)}
             />
           )}
-          {module === "flow" && <FlowModule project={project} nodes={nodes} />}
+          {module === "flow" && <FlowModule project={project} nodes={nodes} edges={edges} />}
           {module === "freeform" && (
             <FreeFormModule
               project={project}

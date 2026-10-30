@@ -57,7 +57,8 @@
       "Bash(cd \"/Users/aaroncustodio/Project Management\" && cat src/lib/constants.ts && echo \"=== analytics nodesFor ===\" && grep -n \"nodesFor\\\\|export function\" src/lib/analytics.ts)",
       "Bash(cd \"/Users/aaroncustodio/Project Management\" && cat node_modules/@dagrejs/dagre/package.json | head -30 && echo \"=== types ===\" && ls node_modules/@dagrejs/dagre/dist/types 2>/dev/null | head && echo \"=== index.d.ts ===\" && find node_modules/@dagrejs/dagre -name \"*.d.ts\" | head -5)",
       "Bash(cd \"/Users/aaroncustodio/Project Management\" && grep -n \"export function dueLabel\" -A 22 src/lib/format.ts)",
-      "Bash(cd \"/Users/aaroncustodio/Project Management\" && node -e \"\nconst d = require\\('@dagrejs/dagre'\\);\nconsole.log\\('keys:', Object.keys\\(d\\).join\\(','\\)\\);\nconsole.log\\('default?', typeof d.default\\);\n\" && sed -n '/\"exports\"/,/^  }/p' node_modules/@dagrejs/dagre/package.json && echo \"=== index.d.ts ===\" && cat node_modules/@dagrejs/dagre/dist/types/index.d.ts)"
+      "Bash(cd \"/Users/aaroncustodio/Project Management\" && node -e \"\nconst d = require\\('@dagrejs/dagre'\\);\nconsole.log\\('keys:', Object.keys\\(d\\).join\\(','\\)\\);\nconsole.log\\('default?', typeof d.default\\);\n\" && sed -n '/\"exports\"/,/^  }/p' node_modules/@dagrejs/dagre/package.json && echo \"=== index.d.ts ===\" && cat node_modules/@dagrejs/dagre/dist/types/index.d.ts)",
+      "Bash(cd \"/Users/aaroncustodio/Project Management\" && grep -n \"Checklist / nodes\" -A 3 src/app/globals.css | head -12 && echo \"=== node-q ===\" && grep -n \"\\\\.node-q\" -A 10 src/app/globals.css | head -20)"
     ]
   }
 }

@@ -19,10 +19,6 @@ export type FlowNodeData = {
 
 export type FlowNodeType = Node<FlowNodeData, "pulse">;
 
-export function edgesFor(edges: ProjectEdge[], projectId: string): ProjectEdge[] {
-  return edges.filter((e) => e.projectId === projectId);
-}
-
 /** Left-to-right ranks. Unconnected nodes land in the first column. */
 export function layoutNodes(nodes: ProjectNode[], edges: ProjectEdge[]): Record<string, { x: number; y: number }> {
   const graph = new Graph();
@@ -77,7 +73,7 @@ export function toFlowEdges(edges: ProjectEdge[]): Edge[] {
     id: edge.id,
     source: edge.sourceId,
     target: edge.targetId,
-    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "var(--line-strong)" },
+    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "#b9c1cf" },
   }));
 }
 
