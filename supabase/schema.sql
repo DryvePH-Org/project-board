@@ -71,6 +71,7 @@ create index if not exists blockers_open_idx   on public.blockers (status) where
 create or replace function public.touch_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   new.updated_at = now();
@@ -82,6 +83,9 @@ drop trigger if exists projects_touch on public.projects;
 create trigger projects_touch
 before update on public.projects
 for each row execute function public.touch_updated_at();
+
+-- Trigger functions stay out of the Data API.
+revoke all on function public.touch_updated_at() from public, anon, authenticated;
 
 -- ------------------------------------------------------------
 -- Keep the project's progress + status in sync with its
@@ -137,20 +141,18 @@ create trigger updates_sync
 after insert or update or delete on public.updates
 for each row execute function public.sync_project_from_update();
 
+revoke all on function public.sync_project_from_update() from public, anon, authenticated;
+
 -- ------------------------------------------------------------
 -- Row level security
 --
--- The app has no login, so the anonymous key is allowed to read
--- and write. Anyone with the deployed URL can therefore edit.
--- Keep the link inside the team.
+-- Before auth is set up, the anonymous key can read and write, so
+-- anyone with the deployed URL can edit. Keep the link inside the team.
 --
--- HARDENING LATER: enable Supabase Auth, then replace the two
--- policies below with, e.g.:
---   create policy "team read" on public.projects
---     for select to authenticated using (true);
---   create policy "team write" on public.projects
---     for all to authenticated using (true) with check (true);
--- and remove the anon policies.
+-- Once supabase/phase1_auth.sql has run, the anon policies are
+-- dropped and never re-created: the DO block below checks for the
+-- team policy first, because re-applying this file to an
+-- auth-enabled project must not silently re-open anonymous writes.
 -- ------------------------------------------------------------
 alter table public.projects enable row level security;
 alter table public.updates  enable row level security;
@@ -163,13 +165,26 @@ drop policy if exists "anon write updates"  on public.updates;
 drop policy if exists "anon read blockers"  on public.blockers;
 drop policy if exists "anon write blockers" on public.blockers;
 
-create policy "anon read projects"  on public.projects for select using (true);
-create policy "anon write projects" on public.projects for all    using (true) with check (true);
-create policy "anon read updates"   on public.updates  for select using (true);
-create policy "anon write updates"  on public.updates  for all    using (true) with check (true);
-create policy "anon read blockers"  on public.blockers for select using (true);
-create policy "anon write blockers" on public.blockers for all    using (true) with check (true);
+do $$ begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename  = 'projects'
+      and policyname = 'team access projects'
+  ) then
+    create policy "anon read projects"  on public.projects for select using (true);
+    create policy "anon write projects" on public.projects for all    using (true) with check (true);
+    create policy "anon read updates"   on public.updates  for select using (true);
+    create policy "anon write updates"  on public.updates  for all    using (true) with check (true);
+    create policy "anon read blockers"  on public.blockers for select using (true);
+    create policy "anon write blockers" on public.blockers for all    using (true) with check (true);
 
-grant select, insert, update, delete on public.projects to anon, authenticated;
-grant select, insert, update, delete on public.updates  to anon, authenticated;
-grant select, insert, update, delete on public.blockers to anon, authenticated;
+    grant select, insert, update, delete on public.projects to anon;
+    grant select, insert, update, delete on public.updates  to anon;
+    grant select, insert, update, delete on public.blockers to anon;
+  end if;
+end $$;
+
+grant select, insert, update, delete on public.projects to authenticated;
+grant select, insert, update, delete on public.updates  to authenticated;
+grant select, insert, update, delete on public.blockers to authenticated;

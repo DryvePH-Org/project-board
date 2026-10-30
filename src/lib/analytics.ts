@@ -1,5 +1,5 @@
 import { daysBetween, parseISO } from "./format";
-import type { Blocker, Project, Update } from "./types";
+import type { Blocker, Project, ProjectNode, Update } from "./types";
 
 export function latestUpdate(updates: Update[], projectId: string): Update | null {
   const list = updates
@@ -25,6 +25,12 @@ export function projectBlockers(blockers: Blocker[], projectId: string): Blocker
       if (a.status !== b.status) return a.status === "open" ? -1 : 1;
       return b.createdAt.localeCompare(a.createdAt);
     });
+}
+
+export function nodesFor(nodes: ProjectNode[], projectId: string): ProjectNode[] {
+  return nodes
+    .filter((n) => n.projectId === projectId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 export function isStale(project: Project, updates: Update[]): boolean {

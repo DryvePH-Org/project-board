@@ -17,13 +17,16 @@ import type {
   Blocker,
   BlockerInput,
   DataSet,
+  EdgeInput,
+  NodeInput,
   Project,
   ProjectInput,
+  ProjectNode,
   Repository,
   UpdateInput,
 } from "./types";
 
-const EMPTY: DataSet = { projects: [], updates: [], blockers: [] };
+const EMPTY: DataSet = { projects: [], updates: [], blockers: [], nodes: [], edges: [] };
 
 type ToastTone = "success" | "error" | "info";
 interface Toast {
@@ -48,6 +51,11 @@ interface WorkspaceValue {
   addBlocker: (input: BlockerInput) => Promise<boolean>;
   updateBlocker: (id: string, patch: Partial<Blocker>) => Promise<boolean>;
   deleteBlocker: (id: string) => Promise<boolean>;
+  addNode: (input: NodeInput) => Promise<boolean>;
+  updateNode: (id: string, patch: Partial<ProjectNode>) => Promise<boolean>;
+  deleteNode: (id: string) => Promise<boolean>;
+  addEdge: (input: EdgeInput) => Promise<boolean>;
+  deleteEdge: (id: string) => Promise<boolean>;
   notify: (message: string, tone?: ToastTone) => void;
   toasts: Toast[];
   dismissToast: (id: number) => void;
@@ -144,6 +152,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       addBlocker: (input) => run(() => repo.addBlocker(input), "Blocker added"),
       updateBlocker: (id, patch) => run(() => repo.updateBlocker(id, patch), "Blocker updated"),
       deleteBlocker: (id) => run(() => repo.deleteBlocker(id), "Blocker removed"),
+      addNode: (input) => run(() => repo.addNode(input), "Node added"),
+      updateNode: (id, patch) => run(() => repo.updateNode(id, patch), "Node updated"),
+      deleteNode: (id) => run(() => repo.deleteNode(id), "Node removed"),
+      addEdge: (input) => run(() => repo.addEdge(input), ""),
+      deleteEdge: (id) => run(() => repo.deleteEdge(id), "Link removed"),
       notify,
       toasts,
       dismissToast,

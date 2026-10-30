@@ -3,14 +3,18 @@ import type {
   Blocker,
   BlockerInput,
   DataSet,
+  EdgeInput,
+  NodeInput,
   Project,
+  ProjectEdge,
   ProjectInput,
+  ProjectNode,
   Repository,
   Update,
   UpdateInput,
 } from "./types";
 
-const KEY = "pulseboard.demo.v1";
+const KEY = "pulseboard.demo.v2";
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -34,7 +38,6 @@ function seed(): DataSet {
       status: "on_track",
       startDate: daysFromNow(-24),
       dueDate: daysFromNow(9),
-      progress: 62,
       color: "#4f46e5",
       archived: false,
       createdAt: now,
@@ -51,7 +54,6 @@ function seed(): DataSet {
       status: "at_risk",
       startDate: daysFromNow(-18),
       dueDate: daysFromNow(4),
-      progress: 78,
       color: "#db2777",
       archived: false,
       createdAt: now,
@@ -68,7 +70,6 @@ function seed(): DataSet {
       status: "on_track",
       startDate: daysFromNow(-6),
       dueDate: daysFromNow(21),
-      progress: 25,
       color: "#0d9488",
       archived: false,
       createdAt: now,
@@ -85,7 +86,6 @@ function seed(): DataSet {
       status: "blocked",
       startDate: daysFromNow(-31),
       dueDate: daysFromNow(14),
-      progress: 45,
       color: "#d97706",
       archived: false,
       createdAt: now,
@@ -101,7 +101,6 @@ function seed(): DataSet {
       status: "done",
       startDate: daysFromNow(-52),
       dueDate: daysFromNow(-8),
-      progress: 100,
       color: "#7c3aed",
       archived: false,
       createdAt: now,
@@ -117,7 +116,6 @@ function seed(): DataSet {
       status: "on_track",
       startDate: daysFromNow(6),
       dueDate: daysFromNow(48),
-      progress: 0,
       color: "#0ea5e9",
       archived: false,
       createdAt: now,
@@ -131,7 +129,6 @@ function seed(): DataSet {
       projectId: "p-northwind",
       updateDate: todayISO(),
       status: "on_track",
-      progress: 62,
       hours: 5.5,
       summary:
         "Homepage and services template are built and responsive. Client reviewed the hero section and asked for a warmer photo treatment.",
@@ -145,7 +142,6 @@ function seed(): DataSet {
       projectId: "p-q4-campaign",
       updateDate: todayISO(),
       status: "at_risk",
-      progress: 78,
       hours: 3,
       summary:
         "Email sequence is assembled in the ESP. Legal still has not returned the approved claims list, which gates the ad copy.",
@@ -159,7 +155,6 @@ function seed(): DataSet {
       projectId: "p-analytics",
       updateDate: todayISO(),
       status: "blocked",
-      progress: 45,
       hours: 1,
       summary:
         "Chart components are done, but the time-tracking vendor has not issued API credentials. Built a temporary CSV importer to keep moving.",
@@ -173,7 +168,6 @@ function seed(): DataSet {
       projectId: "p-onboarding",
       updateDate: daysFromNow(-1),
       status: "on_track",
-      progress: 25,
       hours: 4,
       summary: "Mapped the current onboarding flow with the delivery team. Found three handoff gaps and one duplicate email.",
       nextStep: "Draft the 30-day journey in a shared doc and circulate for comment.",
@@ -186,7 +180,6 @@ function seed(): DataSet {
       projectId: "p-northwind",
       updateDate: daysFromNow(-1),
       status: "on_track",
-      progress: 55,
       hours: 6,
       summary: "Design system tokens implemented. Header, footer, and navigation are complete.",
       nextStep: "Start the services and case-study templates.",
@@ -199,7 +192,6 @@ function seed(): DataSet {
       projectId: "p-q4-campaign",
       updateDate: daysFromNow(-2),
       status: "at_risk",
-      progress: 72,
       hours: 5,
       summary: "Landing page copy is final. Paid social creative is rendered in all three aspect ratios.",
       nextStep: "Wait on legal, then schedule the campaign.",
@@ -212,7 +204,6 @@ function seed(): DataSet {
       projectId: "p-northwind",
       updateDate: daysFromNow(-2),
       status: "on_track",
-      progress: 48,
       hours: 7,
       summary: "Style tile approved by the client. Built the first two page layouts.",
       nextStep: "Finish remaining page layouts.",
@@ -225,7 +216,6 @@ function seed(): DataSet {
       projectId: "p-brand",
       updateDate: daysFromNow(-8),
       status: "done",
-      progress: 100,
       hours: 2,
       summary: "Delivered the final PDF and source assets. Client signed off.",
       nextStep: "Nothing outstanding.",
@@ -272,11 +262,75 @@ function seed(): DataSet {
     },
   ];
 
-  return { projects, updates, blockers };
+  const nodes: ProjectNode[] = [
+    {
+      id: "n-1",
+      projectId: "p-northwind",
+      title: "Design system tokens",
+      note: "Colors, type scale, spacing.",
+      kind: "step",
+      state: "done",
+      dueDate: null,
+      createdBy: "Aaron",
+      createdAt: now,
+    },
+    {
+      id: "n-2",
+      projectId: "p-northwind",
+      title: "Homepage + services template",
+      note: "",
+      kind: "step",
+      state: "done",
+      dueDate: null,
+      createdBy: "Aaron",
+      createdAt: now,
+    },
+    {
+      id: "n-3",
+      projectId: "p-northwind",
+      title: "Case-study template",
+      note: "",
+      kind: "step",
+      state: "in_progress",
+      dueDate: daysFromNow(3),
+      createdBy: "Aaron",
+      createdAt: now,
+    },
+    {
+      id: "n-4",
+      projectId: "p-northwind",
+      title: "CMS handover",
+      note: "Walk the client through publishing.",
+      kind: "milestone",
+      state: "planned",
+      dueDate: daysFromNow(9),
+      createdBy: "Aaron",
+      createdAt: now,
+    },
+    {
+      id: "n-5",
+      projectId: "p-northwind",
+      title: "Does the client want a blog section?",
+      note: "Came up in the last call, not scoped yet.",
+      kind: "question",
+      state: "idea",
+      dueDate: null,
+      createdBy: "Aaron",
+      createdAt: now,
+    },
+  ];
+
+  const edges: ProjectEdge[] = [
+    { id: "e-1", projectId: "p-northwind", sourceId: "n-1", targetId: "n-2", createdAt: now },
+    { id: "e-2", projectId: "p-northwind", sourceId: "n-2", targetId: "n-3", createdAt: now },
+    { id: "e-3", projectId: "p-northwind", sourceId: "n-3", targetId: "n-4", createdAt: now },
+  ];
+
+  return { projects, updates, blockers, nodes, edges };
 }
 
 function read(): DataSet {
-  if (typeof window === "undefined") return { projects: [], updates: [], blockers: [] };
+  if (typeof window === "undefined") return { projects: [], updates: [], blockers: [], nodes: [], edges: [] };
   const raw = window.localStorage.getItem(KEY);
   if (!raw) {
     const data = seed();
@@ -289,6 +343,8 @@ function read(): DataSet {
       projects: parsed.projects ?? [],
       updates: parsed.updates ?? [],
       blockers: parsed.blockers ?? [],
+      nodes: parsed.nodes ?? [],
+      edges: parsed.edges ?? [],
     };
   } catch {
     const data = seed();
@@ -318,7 +374,6 @@ export const demoRepository: Repository = {
     const project: Project = {
       id: uid(),
       ...input,
-      progress: 0,
       archived: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -338,6 +393,8 @@ export const demoRepository: Repository = {
     data.projects = data.projects.filter((p) => p.id !== id);
     data.updates = data.updates.filter((u) => u.projectId !== id);
     data.blockers = data.blockers.filter((b) => b.projectId !== id);
+    data.nodes = data.nodes.filter((n) => n.projectId !== id);
+    data.edges = data.edges.filter((e) => e.projectId !== id);
     write(data);
   },
 
@@ -350,7 +407,6 @@ export const demoRepository: Repository = {
     };
     data.updates.unshift(update);
     patchProject(data, input.projectId, {
-      progress: input.progress,
       status: input.status,
       ...(input.status === "done" ? { stage: "done" as const } : {}),
     });
@@ -394,6 +450,51 @@ export const demoRepository: Repository = {
   async deleteBlocker(id) {
     const data = read();
     data.blockers = data.blockers.filter((b) => b.id !== id);
+    write(data);
+  },
+
+  async addNode(input: NodeInput) {
+    const data = read();
+    const node: ProjectNode = {
+      id: uid(),
+      ...input,
+      createdBy: null,
+      createdAt: new Date().toISOString(),
+    };
+    data.nodes.push(node);
+    write(data);
+  },
+
+  async updateNode(id, patch) {
+    const data = read();
+    data.nodes = data.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n));
+    write(data);
+  },
+
+  async deleteNode(id) {
+    const data = read();
+    data.nodes = data.nodes.filter((n) => n.id !== id);
+    data.edges = data.edges.filter((e) => e.sourceId !== id && e.targetId !== id);
+    write(data);
+  },
+
+  async addEdge(input: EdgeInput) {
+    if (input.sourceId === input.targetId) return;
+    const data = read();
+    const exists = data.edges.some((e) => e.sourceId === input.sourceId && e.targetId === input.targetId);
+    if (exists) return;
+    const edge: ProjectEdge = {
+      id: uid(),
+      ...input,
+      createdAt: new Date().toISOString(),
+    };
+    data.edges.push(edge);
+    write(data);
+  },
+
+  async deleteEdge(id) {
+    const data = read();
+    data.edges = data.edges.filter((e) => e.id !== id);
     write(data);
   },
 };

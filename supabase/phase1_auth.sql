@@ -37,8 +37,8 @@ create policy "team can read profiles"
 
 create policy "edit own profile"
   on public.profiles for update to authenticated
-  using (auth.uid() = id)
-  with check (auth.uid() = id);
+  using ((select auth.uid()) = id)
+  with check ((select auth.uid()) = id);
 
 grant select, update on public.profiles to authenticated;
 revoke all on public.profiles from anon;
@@ -70,6 +70,9 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- Trigger functions are not meant to be callable through the Data API.
+revoke all on function public.handle_new_user() from public, anon, authenticated;
 
 -- ------------------------------------------------------------
 -- Invite list
@@ -108,6 +111,8 @@ create trigger enforce_team_allowlist
   before insert on auth.users
   for each row execute function public.enforce_team_allowlist();
 
+revoke all on function public.enforce_team_allowlist() from public, anon, authenticated;
+
 -- ------------------------------------------------------------
 -- Lock the existing tables to signed-in teammates only.
 -- (Replaces the original no-login anon policies.)
@@ -126,12 +131,13 @@ drop policy if exists "team writes updates"  on public.updates;
 drop policy if exists "team reads blockers"  on public.blockers;
 drop policy if exists "team writes blockers" on public.blockers;
 
-create policy "team reads projects"  on public.projects for select to authenticated using (true);
-create policy "team writes projects" on public.projects for all    to authenticated using (true) with check (true);
-create policy "team reads updates"   on public.updates  for select to authenticated using (true);
-create policy "team writes updates"  on public.updates  for all    to authenticated using (true) with check (true);
-create policy "team reads blockers"  on public.blockers for select to authenticated using (true);
-create policy "team writes blockers" on public.blockers for all    to authenticated using (true) with check (true);
+drop policy if exists "team access projects" on public.projects;
+drop policy if exists "team access updates"  on public.updates;
+drop policy if exists "team access blockers" on public.blockers;
+
+create policy "team access projects" on public.projects for all to authenticated using (true) with check (true);
+create policy "team access updates"  on public.updates  for all to authenticated using (true) with check (true);
+create policy "team access blockers" on public.blockers for all to authenticated using (true) with check (true);
 
 revoke all on public.projects from anon;
 revoke all on public.updates  from anon;

@@ -34,8 +34,17 @@ Open http://localhost:3000. With no environment variables the app runs in **demo
 ## Connect Supabase (≈5 minutes, free)
 
 1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard).
-2. Open **SQL Editor → New query**, paste all of `supabase/schema.sql`, click **Run**.
-   Optional: run `supabase/seed.sql` to load example data.
+2. Apply the SQL. Either from the dashboard (**SQL Editor → New query**, paste a file, **Run**)
+   in this order — `supabase/schema.sql`, then `supabase/phase1_auth.sql` (read the comment at the
+   top first: it has you add your own email to the team allowlist before anyone can sign up),
+   then `supabase/phase4_nodes.sql` — or from the command line:
+
+   ```bash
+   # .env.local needs DATABASE_URL (Project Settings → Database → Connection string, Direct)
+   npm run migrate
+   ```
+
+   All three files are safe to re-run. Optionally load example rows with `supabase/seed.sql`.
 3. Copy **Project URL** and the **anon public** key from **Project Settings → API**.
 4. Create `.env.local`:
 
@@ -45,7 +54,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR-ANON-KEY
 NEXT_PUBLIC_TEAM_NAME=My Team
 ```
 
-5. Restart `npm run dev`. The yellow demo strip disappears once data is coming from Supabase.
+5. Point the magic-link email template at the app: **Authentication → Email Templates → Magic Link**,
+   and make sure the link is `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type={{ .Type }}`.
+   The default template uses `{{ .ConfirmationURL }}`, which lands on the site root and drops the
+   token — sign-in appears to do nothing.
+6. Restart `npm run dev`. The yellow demo strip disappears once data is coming from Supabase.
 
 The app polls the database every 60 seconds while the tab is visible, so teammates see changes without reloading. The whole `/setup` page inside the app repeats these instructions for anyone else on the team.
 
@@ -71,6 +84,9 @@ updates    id · project_id → projects · update_date · status · progress
 
 blockers   id · project_id → projects · title · detail · severity
            status (open|resolved) · owner · created_at · resolved_at
+
+nodes      id · project_id → projects · title · note · kind (step|milestone|question)
+           state (idea|planned|in_progress|blocked|done) · due_date · created_by · created_at
 ```
 
 `supabase/schema.sql` also creates:
@@ -109,15 +125,16 @@ If you add or rename a stage, update the `check` constraint in `schema.sql` (and
 
 ---
 
-## Security (read this before sharing the link)
+## Security
 
-There is **no authentication by design**. The anonymous key ships to the browser with read/write policies, so anyone with the URL can edit your data. That's a normal trade-off for a small internal tool, but it is not suitable for sensitive client data.
+Sign-in is required. After `schema.sql`, also run `supabase/phase1_auth.sql` in the SQL editor — it adds:
 
-Options, in order of effort:
+- Supabase Auth (email magic links), with `middleware.ts` redirecting signed-out visitors to `/login`.
+- A `profiles` table, filled automatically on signup by a trigger.
+- A team allowlist (`allowed_emails`): sign-ups from any other email are rejected. Add your team's emails there before sharing the link.
+- RLS policies on `projects` / `updates` / `blockers` scoped to `authenticated`, replacing the original anon-write policies.
 
-1. **Keep the URL private.** Fine for a trusted team.
-2. **Enable Supabase Auth** (email magic links) and change the RLS policies from `anon` to `authenticated`. Comments at the bottom of `schema.sql` show the exact policies.
-3. **Add a shared passcode** in front of writes with a Next.js route handler and the service-role key (do not expose the service key to the client).
+Demo mode (no env vars) has no login — it's local-only, nothing to protect.
 
 ---
 

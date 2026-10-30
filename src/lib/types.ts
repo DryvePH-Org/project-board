@@ -3,6 +3,8 @@ export type ProjectStatus = "on_track" | "at_risk" | "blocked" | "done";
 export type Priority = "low" | "medium" | "high";
 export type Severity = "low" | "medium" | "high" | "critical";
 export type BlockerStatus = "open" | "resolved";
+export type NodeState = "idea" | "planned" | "in_progress" | "blocked" | "done";
+export type NodeKind = "step" | "milestone" | "question";
 
 export interface Project {
   id: string;
@@ -14,7 +16,6 @@ export interface Project {
   status: ProjectStatus;
   startDate: string | null;
   dueDate: string | null;
-  progress: number;
   color: string;
   archived: boolean;
   createdAt: string;
@@ -26,7 +27,6 @@ export interface Update {
   projectId: string;
   updateDate: string;
   status: ProjectStatus;
-  progress: number;
   hours: number | null;
   summary: string;
   nextStep: string;
@@ -47,10 +47,36 @@ export interface Blocker {
   resolvedAt: string | null;
 }
 
+/** A step, milestone, or open question on a project's checklist/flow. Named
+ * ProjectNode, not Node, to avoid colliding with the DOM's global Node type. */
+export interface ProjectNode {
+  id: string;
+  projectId: string;
+  title: string;
+  note: string;
+  kind: NodeKind;
+  state: NodeState;
+  dueDate: string | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+
 export interface DataSet {
   projects: Project[];
   updates: Update[];
   blockers: Blocker[];
+  nodes: ProjectNode[];
+  edges: ProjectEdge[];
+}
+
+/** An arrow between two nodes on the flow canvas. No editable fields, so there
+ * is no update path — an edge is created or deleted. */
+export interface ProjectEdge {
+  id: string;
+  projectId: string;
+  sourceId: string;
+  targetId: string;
+  createdAt: string;
 }
 
 export interface ProjectInput {
@@ -69,7 +95,6 @@ export interface UpdateInput {
   projectId: string;
   updateDate: string;
   status: ProjectStatus;
-  progress: number;
   hours: number | null;
   summary: string;
   nextStep: string;
@@ -85,6 +110,21 @@ export interface BlockerInput {
   owner: string;
 }
 
+export interface NodeInput {
+  projectId: string;
+  title: string;
+  note: string;
+  kind: NodeKind;
+  state: NodeState;
+  dueDate: string | null;
+}
+
+export interface EdgeInput {
+  projectId: string;
+  sourceId: string;
+  targetId: string;
+}
+
 export interface Repository {
   kind: "supabase" | "demo";
   loadAll(): Promise<DataSet>;
@@ -96,4 +136,9 @@ export interface Repository {
   addBlocker(input: BlockerInput): Promise<void>;
   updateBlocker(id: string, patch: Partial<Blocker>): Promise<void>;
   deleteBlocker(id: string): Promise<void>;
+  addNode(input: NodeInput): Promise<void>;
+  updateNode(id: string, patch: Partial<ProjectNode>): Promise<void>;
+  deleteNode(id: string): Promise<void>;
+  addEdge(input: EdgeInput): Promise<void>;
+  deleteEdge(id: string): Promise<void>;
 }

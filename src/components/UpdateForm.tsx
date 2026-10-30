@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { STAGES, STATUSES } from "@/lib/constants";
 import { useWorkspace } from "@/lib/store";
-import { latestUpdate } from "@/lib/analytics";
 import { todayISO } from "@/lib/format";
 import type { ProjectStatus } from "@/lib/types";
 import { Field, Modal } from "./ui";
@@ -14,10 +13,8 @@ export function UpdateForm({ onClose }: { onClose: () => void }) {
 
   const [selected, setSelected] = useState(active[0]?.id ?? "");
   const project = active.find((p) => p.id === selected);
-  const previous = project ? latestUpdate(data.updates, project.id) : null;
 
   const [summary, setSummary] = useState("");
-  const [progress, setProgress] = useState(project?.progress ?? 0);
   const [status, setStatus] = useState<ProjectStatus>(project?.status ?? "on_track");
   const [date, setDate] = useState(todayISO());
   const [author, setAuthor] = useState(user || "");
@@ -30,7 +27,6 @@ export function UpdateForm({ onClose }: { onClose: () => void }) {
     setSelected(id);
     const p = active.find((item) => item.id === id);
     if (p) {
-      setProgress(p.progress);
       setStatus(p.status);
     }
   }
@@ -43,7 +39,6 @@ export function UpdateForm({ onClose }: { onClose: () => void }) {
       projectId: selected,
       updateDate: date,
       status,
-      progress,
       hours: hours.trim() === "" ? null : Number(hours),
       summary: summary.trim(),
       nextStep: nextStep.trim(),
@@ -95,21 +90,6 @@ export function UpdateForm({ onClose }: { onClose: () => void }) {
             autoFocus
             required
           />
-        </Field>
-
-        <Field label={`Progress${previous ? ` · last ${previous.progress}%` : ""}`} span>
-          <div className="slider">
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={progress}
-              onChange={(e) => setProgress(Number(e.target.value))}
-              aria-label="Progress"
-            />
-            <span className="slider-value">{progress}%</span>
-          </div>
         </Field>
 
         <Field label="Status" span>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { useWorkspace } from "@/lib/store";
 import { useAuthUser } from "@/lib/useAuthUser";
@@ -11,6 +12,7 @@ import { UpdateForm } from "./UpdateForm";
 export function AppShell({ children }: { children: ReactNode }) {
   const { mode, loading, user, setUser } = useWorkspace();
   const me = useAuthUser();
+  const pathname = usePathname();
   const [projectOpen, setProjectOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
 
@@ -92,7 +94,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      <main className="page">{loading ? <LoadingState /> : children}</main>
+      <main className={`page${pathname.startsWith("/projects/") ? " main-flush" : ""}`}>
+        {loading ? <LoadingState /> : children}
+      </main>
 
       {projectOpen && <ProjectForm onClose={() => setProjectOpen(false)} />}
       {updateOpen && <UpdateForm onClose={() => setUpdateOpen(false)} />}

@@ -90,6 +90,16 @@ export default function SetupPage() {
                   <span className="mono">supabase/schema.sql</span> from this folder and click <strong>Run</strong>. That
                   creates the three tables, indexes, and the trigger that keeps project progress in sync with updates.
                 </p>
+                <p className="small muted" style={{ marginBottom: 8 }}>
+                  Then run <span className="mono">supabase/phase1_auth.sql</span> the same way. It adds sign-in, a{" "}
+                  <span className="mono">profiles</span> table, and the team allowlist — read the comment at the top of
+                  that file before running it, it tells you to add your own email first.
+                </p>
+                <p className="small muted" style={{ marginBottom: 8 }}>
+                  Then <span className="mono">supabase/phase4_nodes.sql</span>, which adds the checklist's{" "}
+                  <span className="mono">nodes</span> table (and <span className="mono">edges</span>, for the flowchart
+                  view coming later).
+                </p>
                 <p className="small muted">
                   Optional: run <span className="mono">supabase/seed.sql</span> too if you want a few example projects to
                   explore before adding real ones.
@@ -169,10 +179,10 @@ export default function SetupPage() {
             <div className="row" style={{ alignItems: "flex-start", gap: 9 }}>
               <Icon name="shield" size={16} style={{ marginTop: 2, flex: "none", color: "var(--amber)" }} />
               <p className="small" style={{ color: "var(--ink-2)", lineHeight: 1.6 }}>
-                <strong>There is no login.</strong> That was intentional — it keeps the app fast and free. It also means
-                anyone who has the URL can read <em>and edit</em> your projects. For an internal team link that is usually
-                fine. If you ever need more control, the next step is enabling Supabase Auth and tightening the row-level
-                security policies (the schema file has notes on this).
+                <strong>Sign-in is required.</strong> After running <span className="mono">schema.sql</span>, also run{" "}
+                <span className="mono">supabase/phase1_auth.sql</span> and add each teammate's email to the{" "}
+                <span className="mono">allowed_emails</span> table — only emails on that list can create an account. Everyone
+                else is sent to <span className="mono">/login</span> and emailed a one-time link, no password required.
               </p>
             </div>
             <div className="row" style={{ alignItems: "flex-start", gap: 9 }}>

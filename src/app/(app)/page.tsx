@@ -82,14 +82,18 @@ export default function HomePage() {
         </button>
       </div>
 
-      <div className="project-list">
+      <div className="project-grid">
         {rows.map(({ project, latest, blockers, health }) => {
           const due = dueLabel(project.dueDate, { done: project.stage === "done" });
           const detail = blockers.length > 0 ? `${health.label} · ${blockers.length}` : health.label;
           return (
-            <Link key={project.id} href={`/projects/${project.id}`} className="project-row">
-              <span className="project-stripe" style={{ background: project.color }} />
-              <div className="project-main">
+            <Link
+              key={project.id}
+              href={`/projects/${project.id}`}
+              className="card project-card"
+            >
+              <span className="project-card__stripe" style={{ background: project.color }} />
+              <div className="project-card__body">
                 <div className="project-head">
                   <span className="project-name">{project.name}</span>
                   <Pill tone={health.tone} dot>
@@ -109,21 +113,12 @@ export default function HomePage() {
                       <span>{project.owner}</span>
                     </>
                   )}
+                  <span
+                    className={`project-due${due.tone === "red" ? " due-red" : due.tone === "amber" ? " due-amber" : ""}`}
+                  >
+                    {due.text}
+                  </span>
                 </div>
-              </div>
-              <div className="project-side">
-                <span className="project-pct">
-                  {project.progress}
-                  <span>%</span>
-                </span>
-                <span
-                  className={`project-due${due.tone === "red" ? " due-red" : due.tone === "amber" ? " due-amber" : ""}`}
-                >
-                  {due.text}
-                </span>
-              </div>
-              <div className="row-progress">
-                <span style={{ width: `${project.progress}%`, background: project.color }} />
               </div>
             </Link>
           );

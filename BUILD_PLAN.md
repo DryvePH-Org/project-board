@@ -45,6 +45,25 @@ Build one phase at a time. Don't start the next until "Done when" is true.
 
 **Done when:** the app loads and a test query to Supabase returns without error.
 
+### Applying migrations
+
+Each phase's SQL is in `supabase/`, applied in order (all are idempotent):
+
+```bash
+npm run migrate     # runs schema.sql, phase1_auth.sql, phase4_nodes.sql
+```
+
+Needs `DATABASE_URL` in `.env.local` (dashboard → Project Settings → Database →
+Connection string, *Direct*). `scripts/migrate.js` percent-encodes the password, so a
+URI with `#`/`?` in it works as pasted. No `DATABASE_URL`? Paste each file into
+Supabase → SQL Editor → Run instead.
+
+Two rules worth knowing, both enforced by the files themselves:
+- `schema.sql` will not re-create the anon policies once auth is set up. Without this
+  guard, re-running it silently re-opens the whole database to the public anon key.
+- Phase 1 onward means anon has no grants at all. Demo mode (no env vars) is unaffected —
+  it never touches Supabase.
+
 ---
 
 ## Phase 1: Auth and team access
@@ -175,12 +194,17 @@ create policy "team all nodes" on nodes for all to authenticated using (true) wi
 create policy "team all edges" on edges for all to authenticated using (true) with check (true);
 ```
 
-- [ ] Tabs on project detail: **Updates | Checklist | Flow**
-- [ ] Checklist tab: add, rename, delete nodes, and change state
-- [ ] State pill with a color per state
-- [ ] Question nodes get a "?" marker
+- [x] Tabs on project detail: **Updates | Checklist | Flow** (Flow is a placeholder until Phase 5)
+- [x] Checklist tab: add, rename, delete nodes, and change state
+- [x] State pill with a color per state
+- [x] Question nodes get a "?" marker
 
-**Done when:** you can build a project's steps as a list and change their states.
+**Done when:** you can build a project's steps as a list and change their states. ✅ Applied to Supabase and verified in-browser.
+
+> Note: Phases 0–3 and 8 (setup, auth, projects, updates, blockers) were built with a richer schema than this
+> plan originally sketched (`stage`/`priority`/`status`/`progress` on projects, `blockers` as its own table) —
+> see `README.md` for the schema actually in use. Phase 4 onward (nodes/edges/flow) is new and follows this
+> plan as written, layered on top of that schema.
 
 ---
 
